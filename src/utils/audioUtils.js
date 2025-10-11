@@ -108,6 +108,11 @@ export class KeyDetector {
     // Major and minor key profiles (Krumhansl-Schmuckler)
     this.majorProfile = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
     this.minorProfile = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+    
+    // Track key detections over time for consensus
+    this.keyVotes = {}; // { "C Major": count, "D Minor": count, ... }
+    this.maxKeyVotes = 30; // Keep last 30 key detections
+    this.keyVoteHistory = []; // Array to maintain order
   }
 
   addNote(noteName) {
@@ -177,9 +182,37 @@ export class KeyDetector {
       }))
       .sort((a, b) => b.confidence - a.confidence); // Sort by confidence descending
     
+    // Track this detection as a vote
+    this.keyVoteHistory.push(bestKey);
+    if (this.keyVoteHistory.length > this.maxKeyVotes) {
+      this.keyVoteHistory.shift();
+    }
+    
+    // Rebuild vote counts
+    this.keyVotes = {};
+    this.keyVoteHistory.forEach(key => {
+      this.keyVotes[key] = (this.keyVotes[key] || 0) + 1;
+    });
+    
+    // Find consensus key (most votes)
+    let consensusKey = bestKey;
+    let maxVotes = 0;
+    Object.entries(this.keyVotes).forEach(([key, votes]) => {
+      if (votes > maxVotes) {
+        maxVotes = votes;
+        consensusKey = key;
+      }
+    });
+    
+    const consensusConfidence = this.keyVoteHistory.length > 0 
+      ? Math.round((maxVotes / this.keyVoteHistory.length) * 100)
+      : 0;
+    
     return {
-      key: bestKey,
+      key: bestKey, // Instantaneous detection
       confidence: Math.round(Math.max(0, Math.min(100, normalizedConfidence))),
+      consensusKey, // Most voted key
+      consensusConfidence,
       histogram: normalizedHistogram
     };
   }
@@ -200,6 +233,8 @@ export class KeyDetector {
 
   clear() {
     this.noteHistory = [];
+    this.keyVotes = {};
+    this.keyVoteHistory = [];
   }
 }
 
@@ -295,10 +330,23 @@ export class BeatDetector {
     // Build BPM histogram
     const bpmHistogram = this.getBPMHistogram();
     
+    // Find consensus BPM (most common in histogram)
+    let consensusBPM = Math.round(this.currentBPM);
+    let consensusConfidence = 0;
+    
+    if (bpmHistogram.length > 0) {
+      // Get the BPM with highest percentage
+      const topBPM = bpmHistogram[0]; // Already sorted by percentage descending
+      consensusBPM = topBPM.bpm;
+      consensusConfidence = topBPM.percentage;
+    }
+    
     return {
       isBeat,
-      bpm: Math.round(this.currentBPM),
+      bpm: Math.round(this.currentBPM), // Instantaneous BPM
       confidence,
+      consensusBPM, // Most voted BPM
+      consensusConfidence,
       energy: Math.round(energy),
       histogram: bpmHistogram
     };

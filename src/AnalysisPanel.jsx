@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import './AnalysisPanel.css';
 
-export default function AnalysisPanel({ keyData, beatData, audioContext }) {
+export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioContext }) {
   const keyCanvasRef = useRef(null);
   const bpmCanvasRef = useRef(null);
+  const noteCanvasRef = useRef(null);
 
   // Draw key histogram
   useEffect(() => {
@@ -99,6 +100,55 @@ export default function AnalysisPanel({ keyData, beatData, audioContext }) {
     });
   }, [beatData]);
 
+  // Draw note histogram
+  useEffect(() => {
+    const canvas = noteCanvasRef.current;
+    if (!canvas || !noteHistogram) return;
+
+    const ctx = canvas.getContext('2d');
+    const { width, height } = canvas;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    // Convert histogram object to sorted array
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const histogram = notes.map(note => ({
+      note,
+      count: noteHistogram[note] || 0
+    }));
+    
+    const maxCount = Math.max(...histogram.map(h => h.count), 1);
+    const barWidth = width / histogram.length;
+    
+    histogram.forEach((item, index) => {
+      if (item.count === 0) return;
+      
+      const barHeight = (item.count / maxCount) * (height - 40);
+      const x = index * barWidth;
+      const y = height - barHeight - 20;
+      
+      // Color gradient based on note
+      const hue = (index / 12) * 360;
+      ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.8)`;
+      
+      ctx.fillRect(x + 2, y, barWidth - 4, barHeight);
+      
+      // Draw note label
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '12px system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.note, x + barWidth / 2, height - 5);
+      
+      // Draw count
+      if (barHeight > 20) {
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText(item.count, x + barWidth / 2, y + 15);
+      }
+    });
+  }, [noteHistogram]);
+
   // Get audio context info
   const getAudioInfo = () => {
     if (!audioContext) return null;
@@ -120,11 +170,33 @@ export default function AnalysisPanel({ keyData, beatData, audioContext }) {
     <div className="analysis-panel">
       <div className="analysis-section">
         <div className="section-header">
+          <h3>Note Distribution</h3>
+        </div>
+        <canvas 
+          ref={noteCanvasRef} 
+          width={600} 
+          height={180}
+          className="histogram-canvas"
+        />
+        <p className="histogram-description">
+          Distribution of detected notes (all 12 chromatic notes)
+        </p>
+      </div>
+
+      <div className="analysis-section">
+        <div className="section-header">
           <h3>Key Detection Analysis</h3>
           {keyData && (
-            <span className="detected-value">
-              Detected: <strong>{keyData.key}</strong> ({keyData.confidence}%)
-            </span>
+            <div className="detection-values">
+              <span className="instantaneous-value">
+                Current: <strong>{keyData.key}</strong> ({keyData.confidence}%)
+              </span>
+              {keyData.consensusKey && (
+                <span className="consensus-value">
+                  Consensus: <strong>{keyData.consensusKey}</strong> ({keyData.consensusConfidence}%)
+                </span>
+              )}
+            </div>
           )}
         </div>
         <canvas 
@@ -142,9 +214,16 @@ export default function AnalysisPanel({ keyData, beatData, audioContext }) {
         <div className="section-header">
           <h3>BPM Detection Analysis</h3>
           {beatData && beatData.bpm > 0 && (
-            <span className="detected-value">
-              Detected: <strong>{beatData.bpm} BPM</strong> ({beatData.confidence}%)
-            </span>
+            <div className="detection-values">
+              <span className="instantaneous-value">
+                Current: <strong>{beatData.bpm} BPM</strong> ({beatData.confidence}%)
+              </span>
+              {beatData.consensusBPM && (
+                <span className="consensus-value">
+                  Consensus: <strong>{beatData.consensusBPM} BPM</strong> ({beatData.consensusConfidence}%)
+                </span>
+              )}
+            </div>
           )}
         </div>
         <canvas 

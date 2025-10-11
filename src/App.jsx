@@ -11,6 +11,7 @@ function App() {
   const [detectedKey, setDetectedKey] = useState({ key: 'Not detected', confidence: 0 })
   const [error, setError] = useState(null)
   const [noteHistory, setNoteHistory] = useState([])
+  const [noteHistogram, setNoteHistogram] = useState({}) // Track note counts
   
   // Individual feature toggles - all enabled by default
   const [noteDetectionEnabled, setNoteDetectionEnabled] = useState(true)
@@ -115,7 +116,14 @@ function App() {
         if (noteInfo) {
           setCurrentNote(noteInfo)
           
-          // Add to note history display
+          // Update note histogram
+          setNoteHistogram(prev => {
+            const newHistogram = { ...prev };
+            newHistogram[noteInfo.noteName] = (newHistogram[noteInfo.noteName] || 0) + 1;
+            return newHistogram;
+          });
+          
+          // Add to note history display (keep for backwards compatibility)
           setNoteHistory(prev => {
             const newHistory = [...prev, noteInfo.note]
             return newHistory.slice(-10) // Keep last 10 notes
@@ -146,7 +154,10 @@ function App() {
       if (beatResult.bpm > 0) {
         setBeatInfo({
           bpm: beatResult.bpm,
-          confidence: beatResult.confidence
+          confidence: beatResult.confidence,
+          consensusBPM: beatResult.consensusBPM,
+          consensusConfidence: beatResult.consensusConfidence,
+          histogram: beatResult.histogram
         })
       }
     }
@@ -162,6 +173,7 @@ function App() {
       beatDetectorRef.current.reset()
     }
     setNoteHistory([])
+    setNoteHistogram({})
     setDetectedKey({ key: 'Not detected', confidence: 0 })
     setBeatInfo({ bpm: 0, confidence: 0 })
   }
@@ -426,11 +438,16 @@ function App() {
             <div className={`key-display ${!keyDetectionEnabled ? 'disabled' : ''}`}>
               <div className="key-info">
                 <div className="key-large">
-                  {keyDetectionEnabled ? detectedKey.key : 'Disabled'}
+                  {keyDetectionEnabled ? (detectedKey.consensusKey || detectedKey.key) : 'Disabled'}
                 </div>
-                {keyDetectionEnabled && detectedKey.confidence > 0 && (
+                {keyDetectionEnabled && detectedKey.consensusConfidence > 0 && (
                   <div className="confidence">
-                    Confidence: {detectedKey.confidence}%
+                    Consensus: {detectedKey.consensusConfidence}%
+                  </div>
+                )}
+                {keyDetectionEnabled && detectedKey.confidence > 0 && (
+                  <div className="confidence" style={{fontSize: '0.85rem', opacity: 0.7}}>
+                    Current: {detectedKey.key} ({detectedKey.confidence}%)
                   </div>
                 )}
               </div>
@@ -455,11 +472,16 @@ function App() {
                   <div className="beat-indicator">
                     {isBeat ? '🔴' : '⚪'}
                   </div>
-                  <div className="bpm-large">{beatInfo.bpm > 0 ? beatInfo.bpm : '--'}</div>
+                  <div className="bpm-large">{beatInfo.consensusBPM || beatInfo.bpm || '--'}</div>
                   <div className="bpm-label">BPM</div>
-                  {beatInfo.confidence > 0 && (
+                  {beatInfo.consensusConfidence > 0 && (
                     <div className="confidence">
-                      Confidence: {beatInfo.confidence}%
+                      Consensus: {beatInfo.consensusConfidence}%
+                    </div>
+                  )}
+                  {beatInfo.bpm > 0 && (
+                    <div className="confidence" style={{fontSize: '0.85rem', opacity: 0.7}}>
+                      Current: {beatInfo.bpm} BPM ({beatInfo.confidence}%)
                     </div>
                   )}
                 </div>
@@ -484,6 +506,7 @@ function App() {
           <AnalysisPanel 
             keyData={detectedKey}
             beatData={beatInfo}
+            noteHistogram={noteHistogram}
             audioContext={audioContextRef.current}
           />
         )}

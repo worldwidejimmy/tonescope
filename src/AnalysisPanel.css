@@ -39,6 +39,33 @@
   font-weight: 600;
 }
 
+.detection-values {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: flex-end;
+}
+
+.instantaneous-value {
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.instantaneous-value strong {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.consensus-value {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+}
+
+.consensus-value strong {
+  color: #4ade80;
+  font-weight: 600;
+}
+
 .histogram-canvas {
   width: 100%;
   max-width: 600px;
@@ -114,6 +141,22 @@ body.light-mode .detected-value {
 }
 
 body.light-mode .detected-value strong {
+  color: #16a34a;
+}
+
+body.light-mode .instantaneous-value {
+  color: #475569;
+}
+
+body.light-mode .instantaneous-value strong {
+  color: #d97706;
+}
+
+body.light-mode .consensus-value {
+  color: #475569;
+}
+
+body.light-mode .consensus-value strong {
   color: #16a34a;
 }
 
