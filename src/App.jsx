@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { PitchDetector, frequencyToNote, KeyDetector, BeatDetector, AudioPlayer } from './utils/audioUtils'
 import { calibrationSongs, getAudioUrl } from './utils/songLibrary'
 import Visualizer from './Visualizer'
+import AnalysisPanel from './AnalysisPanel'
 import './App.css'
 
 function App() {
@@ -476,6 +477,14 @@ function App() {
             analyser={pitchDetectorRef.current.getAnalyser()} 
             currentNote={currentNote?.note}
             isActive={isListening}
+          />
+        )}
+
+        {isListening && (
+          <AnalysisPanel 
+            keyData={detectedKey}
+            beatData={beatInfo}
+            audioContext={audioContextRef.current}
           />
         )}
 

@@ -142,12 +142,14 @@ export class KeyDetector {
     let bestKey = '';
     let bestCorrelation = -1;
     const keys = Object.keys(noteMap);
+    const keyHistogram = []; // Store all key correlations for histogram
 
     keys.forEach(key => {
       const keyIndex = noteMap[key];
       
       // Test major key
       let majorCorr = this.correlate(noteProfile, this.majorProfile, keyIndex);
+      keyHistogram.push({ key: `${key} Major`, correlation: majorCorr });
       if (majorCorr > bestCorrelation) {
         bestCorrelation = majorCorr;
         bestKey = `${key} Major`;
@@ -155,6 +157,7 @@ export class KeyDetector {
 
       // Test minor key
       let minorCorr = this.correlate(noteProfile, this.minorProfile, keyIndex);
+      keyHistogram.push({ key: `${key} Minor`, correlation: minorCorr });
       if (minorCorr > bestCorrelation) {
         bestCorrelation = minorCorr;
         bestKey = `${key} Minor`;
@@ -163,11 +166,21 @@ export class KeyDetector {
 
     // Normalize confidence to 0-100 range
     // The correlation value needs to be normalized based on the max possible correlation
-    const normalizedConfidence = (bestCorrelation / this.getMaxCorrelation()) * 100;
+    const maxCorrelation = this.getMaxCorrelation();
+    const normalizedConfidence = (bestCorrelation / maxCorrelation) * 100;
+    
+    // Normalize histogram values
+    const normalizedHistogram = keyHistogram
+      .map(item => ({
+        key: item.key,
+        confidence: Math.round((item.correlation / maxCorrelation) * 100)
+      }))
+      .sort((a, b) => b.confidence - a.confidence); // Sort by confidence descending
     
     return {
       key: bestKey,
-      confidence: Math.round(Math.max(0, Math.min(100, normalizedConfidence)))
+      confidence: Math.round(Math.max(0, Math.min(100, normalizedConfidence))),
+      histogram: normalizedHistogram
     };
   }
 
@@ -211,6 +224,10 @@ export class BeatDetector {
     this.beatTimes = [];
     this.maxBeatHistory = 8; // Keep last 8 beats for BPM calculation
     this.currentBPM = 0;
+    
+    // BPM histogram for visualization
+    this.bpmHistory = []; // Store recent BPM readings
+    this.maxBPMHistory = 30; // Keep last 30 BPM readings
   }
 
   // Calculate instantaneous energy
@@ -262,16 +279,28 @@ export class BeatDetector {
       
       // Calculate BPM from beat intervals
       this.currentBPM = this.calculateBPM();
+      
+      // Add to BPM history
+      if (this.currentBPM > 0) {
+        this.bpmHistory.push(Math.round(this.currentBPM));
+        if (this.bpmHistory.length > this.maxBPMHistory) {
+          this.bpmHistory.shift();
+        }
+      }
     }
     
     // Calculate confidence based on consistency of beat intervals
     const confidence = this.calculateConfidence();
     
+    // Build BPM histogram
+    const bpmHistogram = this.getBPMHistogram();
+    
     return {
       isBeat,
       bpm: Math.round(this.currentBPM),
       confidence,
-      energy: Math.round(energy)
+      energy: Math.round(energy),
+      histogram: bpmHistogram
     };
   }
 
@@ -325,6 +354,32 @@ export class BeatDetector {
     return Math.round(Math.max(0, Math.min(100, confidence)));
   }
 
+  getBPMHistogram() {
+    if (this.bpmHistory.length === 0) {
+      return [];
+    }
+    
+    // Group BPM values into buckets (±2 BPM range)
+    const buckets = {};
+    this.bpmHistory.forEach(bpm => {
+      // Round to nearest 2 to create buckets
+      const bucket = Math.round(bpm / 2) * 2;
+      buckets[bucket] = (buckets[bucket] || 0) + 1;
+    });
+    
+    // Convert to array and calculate percentages
+    const total = this.bpmHistory.length;
+    const histogram = Object.entries(buckets)
+      .map(([bpm, count]) => ({
+        bpm: parseInt(bpm),
+        count,
+        percentage: Math.round((count / total) * 100)
+      }))
+      .sort((a, b) => b.percentage - a.percentage); // Sort by percentage descending
+    
+    return histogram;
+  }
+
   getAnalyser() {
     return this.analyser;
   }
@@ -332,6 +387,7 @@ export class BeatDetector {
   reset() {
     this.energyHistory = [];
     this.beatTimes = [];
+    this.bpmHistory = [];
     this.currentBPM = 0;
     this.lastBeatTime = 0;
   }
