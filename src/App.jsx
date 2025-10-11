@@ -22,6 +22,10 @@ function App() {
   const [beatInfo, setBeatInfo] = useState({ bpm: 0, confidence: 0 })
   const [isBeat, setIsBeat] = useState(false)
 
+  // Analysis controls
+  const [squelchThreshold, setSquelchThreshold] = useState(20) // 0-100 scale
+  const [updateRate, setUpdateRate] = useState(60) // Updates per second (10-60)
+
   // Calibration mode state
   const [calibrationMode, setCalibrationMode] = useState(false)
   const [selectedSong, setSelectedSong] = useState('')
@@ -35,6 +39,7 @@ function App() {
   const audioPlayerRef = useRef(null)
   const animationFrameRef = useRef(null)
   const streamRef = useRef(null)
+  const lastUpdateTimeRef = useRef(0)
 
   useEffect(() => {
     // Cleanup on unmount
@@ -106,6 +111,29 @@ function App() {
 
   const detectPitch = () => {
     if (!pitchDetectorRef.current || !keyDetectorRef.current) return
+
+    // Throttle update rate
+    const now = performance.now();
+    const minInterval = 1000 / updateRate; // Convert updates/sec to ms between updates
+    
+    if (now - lastUpdateTimeRef.current < minInterval) {
+      animationFrameRef.current = requestAnimationFrame(detectPitch);
+      return;
+    }
+    lastUpdateTimeRef.current = now;
+
+    // Check volume level (squelch)
+    const analyser = pitchDetectorRef.current.getAnalyser();
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+    const averageVolume = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
+    const volumePercent = (averageVolume / 255) * 100;
+    
+    // Skip processing if below squelch threshold
+    if (volumePercent < squelchThreshold) {
+      animationFrameRef.current = requestAnimationFrame(detectPitch);
+      return;
+    }
 
     // Note detection (if enabled)
     if (noteDetectionEnabled) {
@@ -351,6 +379,45 @@ function App() {
             </>
           )}
         </div>
+
+        {isListening && (
+          <div className="analysis-controls">
+            <h3>Analysis Settings</h3>
+            <div className="slider-controls">
+              <div className="slider-control">
+                <label>
+                  <span className="slider-label">Squelch Threshold</span>
+                  <span className="slider-value">{squelchThreshold}%</span>
+                </label>
+                <input 
+                  type="range"
+                  min="0"
+                  max="50"
+                  value={squelchThreshold}
+                  onChange={(e) => setSquelchThreshold(Number(e.target.value))}
+                  className="slider"
+                />
+                <p className="slider-description">Minimum volume to detect notes (filters background noise)</p>
+              </div>
+              
+              <div className="slider-control">
+                <label>
+                  <span className="slider-label">Update Rate</span>
+                  <span className="slider-value">{updateRate} Hz</span>
+                </label>
+                <input 
+                  type="range"
+                  min="5"
+                  max="60"
+                  value={updateRate}
+                  onChange={(e) => setUpdateRate(Number(e.target.value))}
+                  className="slider"
+                />
+                <p className="slider-description">How often to analyze audio (lower = less CPU, slower response)</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {!isListening && !calibrationMode && (
           <div className="calibration-panel">
