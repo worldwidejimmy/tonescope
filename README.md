@@ -5,15 +5,18 @@ Real-time music note and key detection web application built with React.js and t
 ## Features
 
 - 🎤 **Real-time pitch detection** - Detects musical notes as you play or sing
-- 🎹 **Musical key detection** - Analyzes note patterns to determine the musical key
-- 🥁 **Beat detection & BPM** - Detects beats and calculates tempo in real-time
-- 🎵 **Calibration mode** - Test with audio files for accurate calibration
-- 📊 **Visual feedback** - Shows current note, frequency, and tuning accuracy (cents)
-- 💓 **Pulsing beat indicator** - Visual pulse animation when beats are detected
-- 📜 **Note history** - Displays recent notes detected
+- 🎹 **Musical key detection** - Analyzes note patterns to determine the musical key using Krumhansl-Schmuckler algorithm
+- 🥁 **Beat detection & BPM** - Detects beats and calculates tempo in real-time using energy-based analysis
+- 🎵 **Calibration mode** - Test with 11 included CC0 audio tracks for accurate testing
+- 📊 **Visual feedback** - Three real-time visualizations: waveform, frequency spectrum, and chromatic note circle
+- 📈 **Histogram analysis** - Vote bucket displays showing distribution of notes, keys, and BPM over time
+- 🎯 **Consensus tracking** - Shows both instantaneous detection and most-voted results for stability
+- 🎛️ **Analysis controls** - Adjustable squelch threshold, update rate, and FFT size sliders
+- 💓 **Pulsing beat indicator** - Visual pulse animation synchronized with detected beats
+- 📜 **Note history** - Displays recent notes detected with musical notation
 - 🎛️ **Individual feature toggles** - Enable/disable note, key, or beat detection independently
-- 🎨 **Modern UI** - Beautiful gradient design with dark/light mode support
-- 🌐 **Browser-based** - No installation required, runs entirely in the browser
+- 🎨 **Modern UI** - Beautiful gradient design with dark/light mode support and mobile-responsive layout
+- 🌐 **Browser-based** - No installation required, runs entirely in the browser using Web Audio API
 
 ## How It Works
 
@@ -157,15 +160,47 @@ Contributions are welcome! Feel free to submit issues and pull requests.
 - Speak/sing/play clearly and hold notes steady
 - Check your microphone settings
 
+## Analysis Controls
+
+ToneScope provides three adjustable sliders to fine-tune detection:
+
+### Squelch Threshold (0-50%)
+Filters out background noise by ignoring audio below a volume threshold. Increase if picking up unwanted ambient sound. Note: Beat detection continues independently of squelch.
+
+### Update Rate (5-60 Hz)
+Controls how often detection runs (samples per second). Higher = more responsive, lower = smoother consensus and less CPU usage.
+
+### FFT Size (512-8192)
+Controls frequency resolution vs time resolution. Larger = better frequency precision but slower response, smaller = faster response but less precision.
+
+## Understanding the Display
+
+### Instantaneous vs Consensus
+- **Instantaneous:** What's detected in the current sample (changes rapidly)
+- **Consensus:** Most common detection over recent history (stable, reliable)
+
+### Histograms (Vote Buckets)
+- **Note Histogram:** Distribution of detected notes over recent samples
+- **Key Histogram:** Vote percentages for detected keys (shows which keys appear most often)
+- **BPM Histogram:** Distribution of detected tempos
+
+## Technical Details
+
+For detailed technical documentation, architecture information, and development notes, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Future Enhancements
 
-- [ ] Chord detection
+- [ ] Chord detection (major, minor, diminished, augmented)
 - [ ] Audio recording and playback
 - [ ] Sheet music generation
 - [ ] MIDI export
-- [ ] Multiple instrument profiles
-- [ ] Tuner mode with better visualization
+- [ ] Multiple instrument profiles (guitar, piano, vocals)
+- [ ] Tuner mode with needle visualization
+- [ ] Harmonic analysis and overtone visualization
+- [ ] Time signature detection
 
 ---
 
 Built with ❤️ using open source technologies
+
+**See [DEVELOPMENT.md](DEVELOPMENT.md) for complete technical documentation.**
