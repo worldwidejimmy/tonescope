@@ -297,17 +297,22 @@ export class BeatDetector {
     }
     
     const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    
+    // Prevent division by zero
+    if (mean === 0) return 0;
+    
     const variance = intervals.reduce((sum, interval) => {
       return sum + Math.pow(interval - mean, 2);
     }, 0) / intervals.length;
     
     const stdDev = Math.sqrt(variance);
+    const coefficientOfVariation = (stdDev / mean) * 100;
     
-    // Lower standard deviation = higher confidence
-    // Normalize to 0-100 scale
-    const confidence = Math.max(0, Math.min(100, 100 - (stdDev / mean * 100)));
+    // Lower coefficient of variation = higher confidence
+    // Clamp to ensure we stay within 0-100 range
+    const confidence = 100 - coefficientOfVariation;
     
-    return Math.round(confidence);
+    return Math.round(Math.max(0, Math.min(100, confidence)));
   }
 
   getAnalyser() {
