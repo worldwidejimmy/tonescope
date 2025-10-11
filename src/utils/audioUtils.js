@@ -161,9 +161,13 @@ export class KeyDetector {
       }
     });
 
+    // Normalize confidence to 0-100 range
+    // The correlation value needs to be normalized based on the max possible correlation
+    const normalizedConfidence = (bestCorrelation / this.getMaxCorrelation()) * 100;
+    
     return {
       key: bestKey,
-      confidence: Math.round(bestCorrelation * 100)
+      confidence: Math.round(Math.max(0, Math.min(100, normalizedConfidence)))
     };
   }
 
@@ -173,6 +177,12 @@ export class KeyDetector {
       sum += profile1[i] * profile2[(i + offset) % 12];
     }
     return sum;
+  }
+
+  getMaxCorrelation() {
+    // Calculate the maximum possible correlation value
+    // This is the sum of the profile values (for normalization)
+    return this.majorProfile.reduce((a, b) => a + b, 0);
   }
 
   clear() {
