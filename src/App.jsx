@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { PitchDetector, frequencyToNote, KeyDetector, BeatDetector, AudioPlayer } from './utils/audioUtils'
 import { calibrationSongs, getAudioUrl } from './utils/songLibrary'
+import Visualizer from './Visualizer'
 import './App.css'
 
 function App() {
@@ -469,6 +470,14 @@ function App() {
             </div>
           </div>
         </div>
+
+        {isListening && pitchDetectorRef.current && (
+          <Visualizer 
+            analyser={pitchDetectorRef.current.getAnalyser()} 
+            currentNote={currentNote?.note}
+            isActive={isListening}
+          />
+        )}
 
         {noteHistory.length > 0 && (
           <div className="note-history">
