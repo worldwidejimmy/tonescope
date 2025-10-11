@@ -194,11 +194,12 @@
   background: rgba(255, 255, 255, 0.1);
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 .slider::-webkit-slider-thumb {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   width: 20px;
   height: 20px;
   border-radius: 50%;
@@ -614,4 +615,387 @@
   .slider {
     background: rgba(0, 0, 0, 0.1);
   }
+}
+
+/* ========== COMPACT LAYOUT STYLES ========== */
+
+.compact-layout {
+  padding: 0.5rem;
+  max-width: 100%;
+}
+
+.compact-header {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.compact-header h1 {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.compact-main {
+  display: flex;
+  gap: 0.5rem;
+  min-height: calc(100vh - 120px);
+}
+
+/* Sidebar with controls and sliders */
+.control-sidebar {
+  flex-shrink: 0;
+  width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 8px;
+  padding: 0.75rem;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.controls-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.btn-compact {
+  padding: 0.5rem;
+  font-size: 0.85rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Vertical sliders */
+.slider-controls-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.slider-control-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vertical-label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  text-align: center;
+  font-weight: 600;
+}
+
+.slider-vertical {
+  writing-mode: bt-lr; /* IE */
+  -webkit-appearance: slider-vertical; /* WebKit */
+  appearance: slider-vertical;
+  width: 8px;
+  height: 100px;
+  padding: 0;
+  margin: 0;
+}
+
+.slider-value-vertical {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+/* Compact calibration section */
+.calibration-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.calibration-label {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  font-weight: 600;
+  text-align: center;
+}
+
+.song-select-compact {
+  width: 100%;
+  padding: 0.4rem;
+  font-size: 0.7rem;
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.song-select-compact option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* Content area */
+.content-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+}
+
+/* Compact feature panels */
+.display-container-compact {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.feature-panel-compact {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 8px;
+  padding: 0.5rem;
+  backdrop-filter: blur(10px);
+}
+
+.feature-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.btn-feature-toggle-compact {
+  padding: 0.15rem 0.4rem;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  background: rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+  transition: all 0.2s ease;
+}
+
+.btn-feature-toggle-compact.active {
+  background: #4ade80;
+  color: #000;
+}
+
+.btn-feature-toggle-compact:hover {
+  opacity: 0.8;
+}
+
+.btn-feature-toggle-compact:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.placeholder-message {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+  font-size: 0.9rem;
+  background: rgba(30, 41, 59, 0.3);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.note-display-compact,
+.key-display-compact,
+.beat-display-compact {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.note-compact,
+.key-compact,
+.bpm-compact {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #4ade80;
+  margin-bottom: 0.25rem;
+}
+
+.freq-compact,
+.conf-compact {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.placeholder-compact {
+  font-size: 1.5rem;
+  color: #64748b;
+}
+
+.beat-indicator-compact {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  margin-bottom: 0.25rem;
+  transition: all 0.1s ease-out;
+}
+
+.beat-indicator-compact.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+.beat-display-compact.pulse {
+  background: rgba(250, 112, 154, 0.2);
+  border-radius: 6px;
+  animation: pulse-compact 0.3s ease-out;
+}
+
+@keyframes pulse-compact {
+  0% {
+    transform: scale(1);
+    background: rgba(250, 112, 154, 0.2);
+  }
+  50% {
+    transform: scale(1.05);
+    background: rgba(250, 112, 154, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    background: rgba(250, 112, 154, 0.2);
+  }
+}
+
+.compact-footer {
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* Compact layout for visualizer and analysis panels */
+.compact-layout .visualizer-container {
+  margin: 0;
+}
+
+.compact-layout .viz-row {
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.compact-layout .viz-panel {
+  padding: 0.5rem;
+}
+
+.compact-layout .viz-panel h4 {
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.compact-layout .viz-canvas {
+  height: 120px;
+}
+
+.compact-layout .analysis-panel {
+  margin: 0;
+  gap: 0.5rem;
+}
+
+.compact-layout .analysis-section {
+  padding: 0.75rem;
+}
+
+.compact-layout .section-header h3 {
+  font-size: 0.9rem;
+}
+
+.compact-layout .histogram-canvas {
+  height: 150px;
+  max-width: 100%;
+}
+
+.compact-layout .histogram-description {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* VU Meters */
+.vu-meters-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vu-meters {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.vu-meter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.vu-meter-track {
+  width: 20px;
+  height: 100px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.vu-meter-red-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 20%;
+  background: linear-gradient(to bottom, rgba(239, 68, 68, 0.6), rgba(239, 68, 68, 0.3));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.vu-meter-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, 
+    #4ade80 0%, 
+    #4ade80 60%, 
+    #fbbf24 75%, 
+    #fbbf24 85%,
+    #ef4444 85%, 
+    #ef4444 100%
+  );
+  transition: height 0.05s ease-out;
+  border-radius: 0 0 3px 3px;
+}
+
+.vu-meter-squelch-line {
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  height: 2px;
+  background: #667eea;
+  box-shadow: 0 0 4px rgba(102, 126, 234, 0.8);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.vu-label {
+  font-size: 0.65rem;
+  color: #94a3b8;
+  font-weight: 600;
 }

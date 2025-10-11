@@ -27,6 +27,10 @@ function App() {
   const [updateRate, setUpdateRate] = useState(60) // Updates per second (10-60)
   const [fftSize, setFftSize] = useState(2048) // FFT size: 512, 1024, 2048, 4096, 8192
 
+  // VU meter state
+  const [vuLevels, setVuLevels] = useState({ left: 0, right: 0 })
+  const [channelCount, setChannelCount] = useState(1) // Track if mono or stereo
+
   // Calibration mode state
   const [calibrationMode, setCalibrationMode] = useState(false)
   const [selectedSong, setSelectedSong] = useState('')
@@ -78,6 +82,9 @@ function App() {
       source.connect(pitchDetector.getAnalyser())
       source.connect(beatDetector.getAnalyser())
 
+      // Get channel count from the audio source
+      setChannelCount(source.channelCount)
+
       setIsListening(true)
 
       // Start detection loop
@@ -123,12 +130,20 @@ function App() {
     }
     lastUpdateTimeRef.current = now;
 
-    // Check volume level (squelch) first
+    // Check volume level (squelch) first and update VU meters
     const analyser = pitchDetectorRef.current.getAnalyser();
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
     const averageVolume = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
     const volumePercent = (averageVolume / 255) * 100;
+    
+    // Update VU meters
+    // For mono sources (channelCount === 1), both channels get the same value
+    // For stereo sources, we show the combined analysis (Web Audio API mixes to mono in analyser)
+    setVuLevels({
+      left: volumePercent,
+      right: volumePercent
+    });
     
     const isAboveSquelch = volumePercent >= squelchThreshold;
 
@@ -256,13 +271,13 @@ function App() {
       }
 
       // Create detectors
-      const pitchDetector = new PitchDetector(audioContextRef.current)
+      const pitchDetector = new PitchDetector(audioContextRef.current, fftSize)
       pitchDetectorRef.current = pitchDetector
 
       const keyDetector = new KeyDetector()
       keyDetectorRef.current = keyDetector
 
-      const beatDetector = new BeatDetector(audioContextRef.current)
+      const beatDetector = new BeatDetector(audioContextRef.current, fftSize)
       beatDetectorRef.current = beatDetector
 
       // Create and load audio player
@@ -275,6 +290,16 @@ function App() {
       // Connect audio player to all analyzers
       audioPlayer.connectToAnalyser(pitchDetector.getAnalyser())
       pitchDetector.getAnalyser().connect(beatDetector.getAnalyser())
+
+      // Set channel count (audio files can be mono or stereo, default to stereo assumption)
+      // Most audio files are stereo, but we'll detect from the source node
+      const sourceNode = audioPlayer.sourceNode
+      if (sourceNode && sourceNode.channelCount) {
+        setChannelCount(sourceNode.channelCount)
+      } else {
+        // Default to stereo for audio files
+        setChannelCount(2)
+      }
 
       setCalibrationMode(true)
       setIsListening(true)
@@ -330,105 +355,153 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <header className="header">
+    <div className="app compact-layout">
+      <header className="header compact-header">
         <h1>🎵 ToneScope</h1>
-        <p className="subtitle">Real-Time Music Note & Key Detection</p>
       </header>
 
-      <main className="main">
+      <main className="main compact-main">
         {error && (
           <div className="error">
             <p>{error}</p>
           </div>
         )}
 
-        <div className="controls">
-          {!isListening ? (
-            <>
-              <button className="btn btn-primary" onClick={startListening}>
-                🎤 Start Listening
-              </button>
-              <div className="calibration-divider">or</div>
-              <button 
-                className="btn btn-calibrate" 
-                onClick={() => setError(null)}
-                disabled={calibrationSongs.length === 0}
+        {/* Compact Sidebar for Controls */}
+        <div className="control-sidebar">
+          <div className="controls-compact">
+            {!isListening ? (
+              <>
+                <button className="btn btn-compact btn-primary" onClick={startListening}>
+                  Listen
+                </button>
+              </>
+            ) : calibrationMode ? (
+              <>
+                <button className="btn btn-compact btn-danger" onClick={stopCalibrationMode}>
+                  Stop
+                </button>
+                <button 
+                  className={`btn btn-compact ${isPlaying ? 'btn-secondary' : 'btn-primary'}`}
+                  onClick={togglePlayback}
+                >
+                  {isPlaying ? 'Pause' : 'Play'}
+                </button>
+                <button className="btn btn-compact btn-secondary" onClick={resetDetection}>
+                  Reset
+                </button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-compact btn-danger" onClick={stopListening}>
+                  Stop
+                </button>
+                <button className="btn btn-compact btn-secondary" onClick={resetDetection}>
+                  Reset
+                </button>
+              </>
+            )}
+          </div>
+          
+          {/* Calibration Mode Selector */}
+          {!isListening && (
+            <div className="calibration-compact">
+              <label className="calibration-label">Calibration</label>
+              <select 
+                className="song-select-compact"
+                value={selectedSong}
+                onChange={(e) => setSelectedSong(e.target.value)}
               >
-                🎵 Calibration Mode
-              </button>
-            </>
-          ) : calibrationMode ? (
-            <>
-              <button className="btn btn-danger" onClick={stopCalibrationMode}>
-                ⏹️ Stop Calibration
-              </button>
+                <option value="">Select song...</option>
+                {calibrationSongs.map(song => (
+                  <option key={song.id} value={song.id}>
+                    {song.name}
+                  </option>
+                ))}
+              </select>
               <button 
-                className={`btn ${isPlaying ? 'btn-secondary' : 'btn-primary'}`}
-                onClick={togglePlayback}
+                className="btn btn-compact btn-secondary"
+                onClick={startCalibrationMode}
+                disabled={!selectedSong || loadingAudio}
+                style={{fontSize: '0.7rem', padding: '0.4rem'}}
               >
-                {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+                {loadingAudio ? 'Loading...' : 'Select'}
               </button>
-              <button className="btn btn-secondary" onClick={stopPlayback}>
-                ⏹️ Stop
-              </button>
-              <button className="btn btn-secondary" onClick={resetDetection}>
-                🔄 Reset
-              </button>
-            </>
-          ) : (
-            <>
-              <button className="btn btn-danger" onClick={stopListening}>
-                ⏹️ Stop Listening
-              </button>
-              <button className="btn btn-secondary" onClick={resetDetection}>
-                🔄 Reset All
-              </button>
-            </>
+            </div>
           )}
-        </div>
-
-        {isListening && (
-          <div className="analysis-controls">
-            <h3>Analysis Settings</h3>
-            <div className="slider-controls">
-              <div className="slider-control">
-                <label>
-                  <span className="slider-label">Squelch Threshold</span>
-                  <span className="slider-value">{squelchThreshold}%</span>
-                </label>
+          
+          {isListening && (
+            <div className="slider-controls-vertical">
+              {/* VU Meters */}
+              <div className="vu-meters-container">
+                <label className="vertical-label">VU</label>
+                <div className="vu-meters">
+                  {/* Left/Mono channel */}
+                  <div className="vu-meter">
+                    <div className="vu-meter-track">
+                      <div className="vu-meter-red-zone"></div>
+                      <div 
+                        className="vu-meter-fill" 
+                        style={{height: `${Math.min(100, vuLevels.left)}%`}}
+                      ></div>
+                      <div 
+                        className="vu-meter-squelch-line" 
+                        style={{bottom: `${squelchThreshold * 2}%`}}
+                      ></div>
+                    </div>
+                    <span className="vu-label">{channelCount === 1 ? 'M' : 'L'}</span>
+                  </div>
+                  
+                  {/* Right channel - only show if stereo */}
+                  {channelCount > 1 && (
+                    <div className="vu-meter">
+                      <div className="vu-meter-track">
+                        <div className="vu-meter-red-zone"></div>
+                        <div 
+                          className="vu-meter-fill" 
+                          style={{height: `${Math.min(100, vuLevels.right)}%`}}
+                        ></div>
+                        <div 
+                          className="vu-meter-squelch-line" 
+                          style={{bottom: `${squelchThreshold * 2}%`}}
+                        ></div>
+                      </div>
+                      <span className="vu-label">R</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="slider-control-vertical">
+                <label className="vertical-label">Squelch</label>
                 <input 
                   type="range"
                   min="0"
                   max="50"
                   value={squelchThreshold}
                   onChange={(e) => setSquelchThreshold(Number(e.target.value))}
-                  className="slider"
+                  className="slider-vertical"
+                  orient="vertical"
                 />
-                <p className="slider-description">Minimum volume to detect notes (filters background noise)</p>
+                <span className="slider-value-vertical">{squelchThreshold}%</span>
               </div>
               
-              <div className="slider-control">
-                <label>
-                  <span className="slider-label">Update Rate</span>
-                  <span className="slider-value">{updateRate} Hz</span>
-                </label>
+              <div className="slider-control-vertical">
+                <label className="vertical-label">Rate</label>
                 <input 
                   type="range"
                   min="5"
                   max="60"
                   value={updateRate}
                   onChange={(e) => setUpdateRate(Number(e.target.value))}
-                  className="slider"
+                  className="slider-vertical"
+                  orient="vertical"
                 />
-                <p className="slider-description">How often to analyze audio (lower = less CPU, slower response)</p>
+                <span className="slider-value-vertical">{updateRate}Hz</span>
               </div>
               
-              <div className="slider-control">
-                <label>
-                  <span className="slider-label">FFT Size (Sample Window)</span>
-                  <span className="slider-value">{fftSize}</span>
-                </label>
+              <div className="slider-control-vertical">
+                <label className="vertical-label">FFT</label>
                 <input 
                   type="range"
                   min="512"
@@ -436,200 +509,125 @@ function App() {
                   step="512"
                   value={fftSize}
                   onChange={(e) => handleFftSizeChange(Number(e.target.value))}
-                  className="slider"
+                  className="slider-vertical"
+                  orient="vertical"
                 />
-                <p className="slider-description">Audio analysis window size (larger = better low freq, slower response)</p>
+                <span className="slider-value-vertical">{fftSize}</span>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+        
+        {/* Main Content Area */}
+        <div className="content-area">
 
-        {!isListening && !calibrationMode && (
-          <div className="calibration-panel">
-            <h3>🎵 Calibration Mode</h3>
-            <p>Test ToneScope with known audio files</p>
-            {calibrationSongs.length > 0 ? (
-              <>
-                <select 
-                  className="song-select"
-                  value={selectedSong}
-                  onChange={(e) => setSelectedSong(e.target.value)}
-                >
-                  <option value="">Select a calibration song...</option>
-                  {calibrationSongs.map(song => (
-                    <option key={song.id} value={song.id}>
-                      {song.name}
-                      {song.bpm && ` (${song.bpm} BPM)`}
-                    </option>
-                  ))}
-                </select>
-                {selectedSong && (
-                  <div className="song-info">
-                    <p>{calibrationSongs.find(s => s.id === selectedSong)?.description}</p>
-                  </div>
-                )}
-                <button 
-                  className="btn btn-primary"
-                  onClick={startCalibrationMode}
-                  disabled={!selectedSong || loadingAudio}
-                >
-                  {loadingAudio ? '⏳ Loading...' : '🎵 Start Calibration'}
-                </button>
-              </>
-            ) : (
-              <div className="no-songs">
-                <p>No calibration songs available.</p>
-                <p>Add MP3 files to <code>public/audio/</code> and update <code>src/utils/songLibrary.js</code></p>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="display-container">
-          <div className="feature-panel">
-            <div className="feature-header">
-              <h2>Current Note</h2>
-              {isListening && (
-                <button 
-                  className={`btn-feature-toggle ${noteDetectionEnabled ? 'active' : ''}`}
-                  onClick={toggleNoteDetection}
-                >
-                  {noteDetectionEnabled ? '✓ ON' : '✗ OFF'}
-                </button>
-              )}
+        {/* Always show detection displays */}
+        <div className="display-container-compact">
+          <div className="feature-panel-compact">
+            <div className="feature-header-compact">
+              <span>Note</span>
+              <button 
+                className={`btn-feature-toggle-compact ${noteDetectionEnabled ? 'active' : ''}`}
+                onClick={toggleNoteDetection}
+                title={noteDetectionEnabled ? "Note detection ON" : "Note detection OFF"}
+                disabled={!isListening}
+              >
+                {noteDetectionEnabled ? '✓' : '✗'}
+              </button>
             </div>
-            <div className={`note-display ${!noteDetectionEnabled ? 'disabled' : ''}`}>
+            <div className={`note-display-compact ${!noteDetectionEnabled ? 'disabled' : ''}`}>
               {noteDetectionEnabled && currentNote ? (
-                <div className="note-info">
-                  <div className="note-large">{currentNote.note}</div>
-                  <div className="frequency">{currentNote.frequency} Hz</div>
-                  <div className="cents">
-                    {currentNote.cents > 0 ? '+' : ''}{currentNote.cents} cents
-                  </div>
-                </div>
+                <>
+                  <div className="note-compact">{currentNote.note}</div>
+                  <div className="freq-compact">{currentNote.frequency}Hz</div>
+                </>
               ) : (
-                <div className="note-placeholder">
-                  {!isListening ? 'Not listening' : !noteDetectionEnabled ? 'Disabled' : 'Listening...'}
-                </div>
+                <div className="placeholder-compact">--</div>
               )}
             </div>
           </div>
 
-          <div className="feature-panel">
-            <div className="feature-header">
-              <h2>Detected Key</h2>
-              {isListening && (
-                <button 
-                  className={`btn-feature-toggle ${keyDetectionEnabled ? 'active' : ''}`}
-                  onClick={toggleKeyDetection}
-                >
-                  {keyDetectionEnabled ? '✓ ON' : '✗ OFF'}
-                </button>
-              )}
+          <div className="feature-panel-compact">
+            <div className="feature-header-compact">
+              <span>Key</span>
+              <button 
+                className={`btn-feature-toggle-compact ${keyDetectionEnabled ? 'active' : ''}`}
+                onClick={toggleKeyDetection}
+                title={keyDetectionEnabled ? "Key detection ON" : "Key detection OFF"}
+                disabled={!isListening}
+              >
+                {keyDetectionEnabled ? '✓' : '✗'}
+              </button>
             </div>
-            <div className={`key-display ${!keyDetectionEnabled ? 'disabled' : ''}`}>
-              <div className="key-info">
-                <div className="key-large">
-                  {keyDetectionEnabled ? (detectedKey.consensusKey || detectedKey.key) : 'Disabled'}
-                </div>
-                {keyDetectionEnabled && detectedKey.consensusConfidence > 0 && (
-                  <div className="confidence">
-                    Consensus: {detectedKey.consensusConfidence}%
-                  </div>
-                )}
-                {keyDetectionEnabled && detectedKey.confidence > 0 && (
-                  <div className="confidence" style={{fontSize: '0.85rem', opacity: 0.7}}>
-                    Current: {detectedKey.key} ({detectedKey.confidence}%)
-                  </div>
-                )}
-              </div>
+            <div className={`key-display-compact ${!keyDetectionEnabled ? 'disabled' : ''}`}>
+              {keyDetectionEnabled ? (
+                <>
+                  <div className="key-compact">{detectedKey.consensusKey || detectedKey.key}</div>
+                  {detectedKey.consensusConfidence > 0 && (
+                    <div className="conf-compact">{detectedKey.consensusConfidence}%</div>
+                  )}
+                </>
+              ) : (
+                <div className="placeholder-compact">--</div>
+              )}
             </div>
           </div>
 
-          <div className="feature-panel">
-            <div className="feature-header">
-              <h2>Beat Detection</h2>
-              {isListening && (
-                <button 
-                  className={`btn-feature-toggle ${beatDetectionEnabled ? 'active' : ''}`}
-                  onClick={toggleBeatDetection}
-                >
-                  {beatDetectionEnabled ? '✓ ON' : '✗ OFF'}
-                </button>
-              )}
+          <div className="feature-panel-compact">
+            <div className="feature-header-compact">
+              <span>BPM</span>
+              <button 
+                className={`btn-feature-toggle-compact ${beatDetectionEnabled ? 'active' : ''}`}
+                onClick={toggleBeatDetection}
+                title={beatDetectionEnabled ? "Beat detection ON" : "Beat detection OFF"}
+                disabled={!isListening}
+              >
+                {beatDetectionEnabled ? '✓' : '✗'}
+              </button>
             </div>
-            <div className={`beat-display ${isBeat && beatDetectionEnabled ? 'pulse' : ''} ${!beatDetectionEnabled ? 'disabled' : ''}`}>
+            <div className={`beat-display-compact ${isBeat && beatDetectionEnabled ? 'pulse' : ''} ${!beatDetectionEnabled ? 'disabled' : ''}`}>
               {beatDetectionEnabled ? (
-                <div className="beat-info">
-                  <div className="beat-indicator">
-                    {isBeat ? '🔴' : '⚪'}
-                  </div>
-                  <div className="bpm-large">{beatInfo.consensusBPM || beatInfo.bpm || '--'}</div>
-                  <div className="bpm-label">BPM</div>
+                <>
+                  <div className={`beat-indicator-compact ${isBeat ? 'active' : ''}`}></div>
+                  <div className="bpm-compact">{beatInfo.consensusBPM || beatInfo.bpm || '--'}</div>
                   {beatInfo.consensusConfidence > 0 && (
-                    <div className="confidence">
-                      Consensus: {beatInfo.consensusConfidence}%
-                    </div>
+                    <div className="conf-compact">{beatInfo.consensusConfidence}%</div>
                   )}
-                  {beatInfo.bpm > 0 && (
-                    <div className="confidence" style={{fontSize: '0.85rem', opacity: 0.7}}>
-                      Current: {beatInfo.bpm} BPM ({beatInfo.confidence}%)
-                    </div>
-                  )}
-                </div>
+                </>
               ) : (
-                <div className="note-placeholder">
-                  {!isListening ? 'Not listening' : 'Disabled'}
-                </div>
+                <div className="placeholder-compact">--</div>
               )}
             </div>
           </div>
         </div>
 
-        {isListening && pitchDetectorRef.current && (
+        {/* Always show visualizer */}
+        {pitchDetectorRef.current ? (
           <Visualizer 
             analyser={pitchDetectorRef.current.getAnalyser()} 
             currentNote={currentNote?.note}
             isActive={isListening}
           />
+        ) : (
+          <div className="placeholder-message">Start listening to see visualizations</div>
         )}
 
-        {isListening && (
-          <AnalysisPanel 
-            keyData={detectedKey}
-            beatData={beatInfo}
-            noteHistogram={noteHistogram}
-            audioContext={audioContextRef.current}
-            fftSize={fftSize}
-          />
-        )}
+        {/* Always show analysis panels */}
+        <AnalysisPanel 
+          keyData={detectedKey}
+          beatData={beatInfo}
+          noteHistogram={noteHistogram}
+          audioContext={audioContextRef.current}
+          fftSize={fftSize}
+        />
 
-        {noteHistory.length > 0 && (
-          <div className="note-history">
-            <h3>Recent Notes</h3>
-            <div className="history-list">
-              {noteHistory.map((note, index) => (
-                <span key={index} className="history-note">
-                  {note}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="info">
-          <h3>How to use:</h3>
-          <ol>
-            <li>Click "Start Listening" and allow microphone access</li>
-            <li>Play or sing some music</li>
-            <li>Watch as ToneScope detects notes in real-time</li>
-            <li>After several notes, the musical key will be detected</li>
-          </ol>
-        </div>
+        {/* Recent notes history hidden - using histogram instead */}
+        
+        </div> {/* End content-area */}
       </main>
 
-      <footer className="footer">
-        <p>Built with Web Audio API | Open Source</p>
+      <footer className="footer compact-footer">
+        <p>Built with Web Audio API</p>
       </footer>
     </div>
   )
