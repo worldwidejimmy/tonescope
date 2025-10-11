@@ -1,9 +1,15 @@
 // Pitch detection using autocorrelation
 export class PitchDetector {
-  constructor(audioContext) {
+  constructor(audioContext, fftSize = 2048) {
     this.audioContext = audioContext;
     this.analyser = audioContext.createAnalyser();
-    this.analyser.fftSize = 2048;
+    this.analyser.fftSize = fftSize;
+    this.bufferLength = this.analyser.fftSize;
+    this.buffer = new Float32Array(this.bufferLength);
+  }
+
+  setFftSize(fftSize) {
+    this.analyser.fftSize = fftSize;
     this.bufferLength = this.analyser.fftSize;
     this.buffer = new Float32Array(this.bufferLength);
   }
@@ -240,11 +246,17 @@ export class KeyDetector {
 
 // Beat detection using energy-based algorithm
 export class BeatDetector {
-  constructor(audioContext) {
+  constructor(audioContext, fftSize = 2048) {
     this.audioContext = audioContext;
     this.analyser = audioContext.createAnalyser();
-    this.analyser.fftSize = 2048;
+    this.analyser.fftSize = fftSize;
     this.analyser.smoothingTimeConstant = 0.8;
+    this.bufferLength = this.analyser.frequencyBinCount;
+    this.dataArray = new Uint8Array(this.bufferLength);
+  }
+
+  setFftSize(fftSize) {
+    this.analyser.fftSize = fftSize;
     this.bufferLength = this.analyser.frequencyBinCount;
     this.dataArray = new Uint8Array(this.bufferLength);
     

@@ -25,6 +25,7 @@ function App() {
   // Analysis controls
   const [squelchThreshold, setSquelchThreshold] = useState(20) // 0-100 scale
   const [updateRate, setUpdateRate] = useState(60) // Updates per second (10-60)
+  const [fftSize, setFftSize] = useState(2048) // FFT size: 512, 1024, 2048, 4096, 8192
 
   // Calibration mode state
   const [calibrationMode, setCalibrationMode] = useState(false)
@@ -61,7 +62,7 @@ function App() {
       audioContextRef.current = audioContext
 
       // Create pitch detector
-      const pitchDetector = new PitchDetector(audioContext)
+      const pitchDetector = new PitchDetector(audioContext, fftSize)
       pitchDetectorRef.current = pitchDetector
 
       // Create key detector
@@ -69,7 +70,7 @@ function App() {
       keyDetectorRef.current = keyDetector
 
       // Create beat detector
-      const beatDetector = new BeatDetector(audioContext)
+      const beatDetector = new BeatDetector(audioContext, fftSize)
       beatDetectorRef.current = beatDetector
 
       // Connect microphone to analyzers
@@ -228,6 +229,17 @@ function App() {
       beatDetectorRef.current.reset()
       setBeatInfo({ bpm: 0, confidence: 0 })
       setIsBeat(false)
+    }
+  }
+
+  const handleFftSizeChange = (newSize) => {
+    setFftSize(newSize)
+    // Update existing analyzers if they exist
+    if (pitchDetectorRef.current) {
+      pitchDetectorRef.current.setFftSize(newSize)
+    }
+    if (beatDetectorRef.current) {
+      beatDetectorRef.current.setFftSize(newSize)
     }
   }
 
@@ -415,6 +427,23 @@ function App() {
                 />
                 <p className="slider-description">How often to analyze audio (lower = less CPU, slower response)</p>
               </div>
+              
+              <div className="slider-control">
+                <label>
+                  <span className="slider-label">FFT Size (Sample Window)</span>
+                  <span className="slider-value">{fftSize}</span>
+                </label>
+                <input 
+                  type="range"
+                  min="512"
+                  max="8192"
+                  step="512"
+                  value={fftSize}
+                  onChange={(e) => handleFftSizeChange(Number(e.target.value))}
+                  className="slider"
+                />
+                <p className="slider-description">Audio analysis window size (larger = better low freq, slower response)</p>
+              </div>
             </div>
           </div>
         )}
@@ -575,6 +604,7 @@ function App() {
             beatData={beatInfo}
             noteHistogram={noteHistogram}
             audioContext={audioContextRef.current}
+            fftSize={fftSize}
           />
         )}
 

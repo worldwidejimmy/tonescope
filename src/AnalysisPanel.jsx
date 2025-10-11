@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import './AnalysisPanel.css';
 
-export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioContext }) {
+export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioContext, fftSize }) {
   const keyCanvasRef = useRef(null);
   const bpmCanvasRef = useRef(null);
   const noteCanvasRef = useRef(null);
@@ -154,7 +154,7 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
     if (!audioContext) return null;
     
     const sampleRate = audioContext.sampleRate;
-    const bufferSize = 2048; // From analyser.fftSize
+    const bufferSize = fftSize || 2048; // From analyser.fftSize
     const analysisWindow = (bufferSize / sampleRate * 1000).toFixed(1); // in milliseconds
     
     return {
