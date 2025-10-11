@@ -9,10 +9,10 @@ function App() {
   const [error, setError] = useState(null)
   const [noteHistory, setNoteHistory] = useState([])
   
-  // Individual feature toggles
+  // Individual feature toggles - all enabled by default
   const [noteDetectionEnabled, setNoteDetectionEnabled] = useState(true)
   const [keyDetectionEnabled, setKeyDetectionEnabled] = useState(true)
-  const [beatDetectionEnabled, setBeatDetectionEnabled] = useState(false)
+  const [beatDetectionEnabled, setBeatDetectionEnabled] = useState(true)
   
   // Beat detection state
   const [beatInfo, setBeatInfo] = useState({ bpm: 0, confidence: 0 })
