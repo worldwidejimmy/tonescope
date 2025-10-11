@@ -1,0 +1,13 @@
+===========================================
+ ToneScope Calibration Tracks – LICENSE.txt
+===========================================
+
+All recordings included in this package are sourced from FreePD.com
+and are explicitly released into the Public Domain (CC0 dedication).
+
+• You may copy, modify, distribute, and perform the music, even for commercial purposes.
+• Attribution is not required (but appreciated).
+• No royalties, fees, or restrictions apply.
+
+Source: https://freepd.com/
+Full legal code: https://creativecommons.org/publicdomain/zero/1.0/
