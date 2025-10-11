@@ -336,3 +336,97 @@ export class BeatDetector {
     this.lastBeatTime = 0;
   }
 }
+
+// Audio file player for calibration
+export class AudioPlayer {
+  constructor(audioContext) {
+    this.audioContext = audioContext;
+    this.audioElement = null;
+    this.sourceNode = null;
+    this.analyserNode = null;
+    this.isPlaying = false;
+  }
+
+  async loadAudio(url) {
+    // Create audio element
+    this.audioElement = new Audio(url);
+    this.audioElement.crossOrigin = 'anonymous';
+    
+    // Wait for audio to be loadable
+    return new Promise((resolve, reject) => {
+      this.audioElement.addEventListener('canplaythrough', () => resolve(), { once: true });
+      this.audioElement.addEventListener('error', (e) => reject(e), { once: true });
+      this.audioElement.load();
+    });
+  }
+
+  connectToAnalyser(analyser) {
+    if (!this.audioElement) {
+      throw new Error('Audio not loaded. Call loadAudio() first.');
+    }
+
+    // Create media element source if not already created
+    if (!this.sourceNode) {
+      this.sourceNode = this.audioContext.createMediaElementSource(this.audioElement);
+    }
+
+    // Connect to analyser
+    this.sourceNode.connect(analyser);
+    
+    // Also connect to destination so we can hear it
+    this.sourceNode.connect(this.audioContext.destination);
+    
+    this.analyserNode = analyser;
+  }
+
+  play() {
+    if (this.audioElement) {
+      this.audioElement.play();
+      this.isPlaying = true;
+    }
+  }
+
+  pause() {
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.isPlaying = false;
+    }
+  }
+
+  stop() {
+    if (this.audioElement) {
+      this.audioElement.pause();
+      this.audioElement.currentTime = 0;
+      this.isPlaying = false;
+    }
+  }
+
+  isAudioPlaying() {
+    return this.isPlaying && this.audioElement && !this.audioElement.paused;
+  }
+
+  getCurrentTime() {
+    return this.audioElement ? this.audioElement.currentTime : 0;
+  }
+
+  getDuration() {
+    return this.audioElement ? this.audioElement.duration : 0;
+  }
+
+  setVolume(volume) {
+    if (this.audioElement) {
+      this.audioElement.volume = Math.max(0, Math.min(1, volume));
+    }
+  }
+
+  cleanup() {
+    this.stop();
+    if (this.sourceNode) {
+      this.sourceNode.disconnect();
+    }
+    if (this.audioElement) {
+      this.audioElement.src = '';
+      this.audioElement = null;
+    }
+  }
+}

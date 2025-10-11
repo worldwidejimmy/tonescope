@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { PitchDetector, frequencyToNote, KeyDetector, BeatDetector } from './utils/audioUtils'
+import { PitchDetector, frequencyToNote, KeyDetector, BeatDetector, AudioPlayer } from './utils/audioUtils'
+import { calibrationSongs, getAudioUrl } from './utils/songLibrary'
 import './App.css'
 
 function App() {
@@ -18,10 +19,17 @@ function App() {
   const [beatInfo, setBeatInfo] = useState({ bpm: 0, confidence: 0 })
   const [isBeat, setIsBeat] = useState(false)
 
+  // Calibration mode state
+  const [calibrationMode, setCalibrationMode] = useState(false)
+  const [selectedSong, setSelectedSong] = useState('')
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [loadingAudio, setLoadingAudio] = useState(false)
+
   const audioContextRef = useRef(null)
   const pitchDetectorRef = useRef(null)
   const keyDetectorRef = useRef(null)
   const beatDetectorRef = useRef(null)
+  const audioPlayerRef = useRef(null)
   const animationFrameRef = useRef(null)
   const streamRef = useRef(null)
 
@@ -181,6 +189,96 @@ function App() {
     }
   }
 
+  // Calibration mode functions
+  const startCalibrationMode = async () => {
+    if (!selectedSong) {
+      setError('Please select a song first')
+      return
+    }
+
+    try {
+      setError(null)
+      setLoadingAudio(true)
+
+      // Create audio context if needed
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      }
+
+      // Create detectors
+      const pitchDetector = new PitchDetector(audioContextRef.current)
+      pitchDetectorRef.current = pitchDetector
+
+      const keyDetector = new KeyDetector()
+      keyDetectorRef.current = keyDetector
+
+      const beatDetector = new BeatDetector(audioContextRef.current)
+      beatDetectorRef.current = beatDetector
+
+      // Create and load audio player
+      const audioPlayer = new AudioPlayer(audioContextRef.current)
+      audioPlayerRef.current = audioPlayer
+
+      const song = calibrationSongs.find(s => s.id === selectedSong)
+      await audioPlayer.loadAudio(getAudioUrl(song.filename))
+
+      // Connect audio player to all analyzers
+      audioPlayer.connectToAnalyser(pitchDetector.getAnalyser())
+      pitchDetector.getAnalyser().connect(beatDetector.getAnalyser())
+
+      setCalibrationMode(true)
+      setIsListening(true)
+      setLoadingAudio(false)
+
+      // Start detection loop
+      detectPitch()
+    } catch (err) {
+      console.error('Error loading audio:', err)
+      setError(`Could not load audio file. Make sure the file exists in public/audio/`)
+      setLoadingAudio(false)
+    }
+  }
+
+  const stopCalibrationMode = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.cleanup()
+      audioPlayerRef.current = null
+    }
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current)
+    }
+
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
+    }
+
+    setCalibrationMode(false)
+    setIsListening(false)
+    setIsPlaying(false)
+    setCurrentNote(null)
+  }
+
+  const togglePlayback = () => {
+    if (!audioPlayerRef.current) return
+
+    if (isPlaying) {
+      audioPlayerRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      audioPlayerRef.current.play()
+      setIsPlaying(true)
+    }
+  }
+
+  const stopPlayback = () => {
+    if (!audioPlayerRef.current) return
+
+    audioPlayerRef.current.stop()
+    setIsPlaying(false)
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -197,9 +295,37 @@ function App() {
 
         <div className="controls">
           {!isListening ? (
-            <button className="btn btn-primary" onClick={startListening}>
-              🎤 Start Listening
-            </button>
+            <>
+              <button className="btn btn-primary" onClick={startListening}>
+                🎤 Start Listening
+              </button>
+              <div className="calibration-divider">or</div>
+              <button 
+                className="btn btn-calibrate" 
+                onClick={() => setError(null)}
+                disabled={calibrationSongs.length === 0}
+              >
+                🎵 Calibration Mode
+              </button>
+            </>
+          ) : calibrationMode ? (
+            <>
+              <button className="btn btn-danger" onClick={stopCalibrationMode}>
+                ⏹️ Stop Calibration
+              </button>
+              <button 
+                className={`btn ${isPlaying ? 'btn-secondary' : 'btn-primary'}`}
+                onClick={togglePlayback}
+              >
+                {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+              </button>
+              <button className="btn btn-secondary" onClick={stopPlayback}>
+                ⏹️ Stop
+              </button>
+              <button className="btn btn-secondary" onClick={resetDetection}>
+                🔄 Reset
+              </button>
+            </>
           ) : (
             <>
               <button className="btn btn-danger" onClick={stopListening}>
@@ -211,6 +337,47 @@ function App() {
             </>
           )}
         </div>
+
+        {!isListening && !calibrationMode && (
+          <div className="calibration-panel">
+            <h3>🎵 Calibration Mode</h3>
+            <p>Test ToneScope with known audio files</p>
+            {calibrationSongs.length > 0 ? (
+              <>
+                <select 
+                  className="song-select"
+                  value={selectedSong}
+                  onChange={(e) => setSelectedSong(e.target.value)}
+                >
+                  <option value="">Select a calibration song...</option>
+                  {calibrationSongs.map(song => (
+                    <option key={song.id} value={song.id}>
+                      {song.name}
+                      {song.bpm && ` (${song.bpm} BPM)`}
+                    </option>
+                  ))}
+                </select>
+                {selectedSong && (
+                  <div className="song-info">
+                    <p>{calibrationSongs.find(s => s.id === selectedSong)?.description}</p>
+                  </div>
+                )}
+                <button 
+                  className="btn btn-primary"
+                  onClick={startCalibrationMode}
+                  disabled={!selectedSong || loadingAudio}
+                >
+                  {loadingAudio ? '⏳ Loading...' : '🎵 Start Calibration'}
+                </button>
+              </>
+            ) : (
+              <div className="no-songs">
+                <p>No calibration songs available.</p>
+                <p>Add MP3 files to <code>public/audio/</code> and update <code>src/utils/songLibrary.js</code></p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="display-container">
           <div className="feature-panel">

@@ -7,9 +7,11 @@ Real-time music note and key detection web application built with React.js and t
 - 🎤 **Real-time pitch detection** - Detects musical notes as you play or sing
 - 🎹 **Musical key detection** - Analyzes note patterns to determine the musical key
 - 🥁 **Beat detection & BPM** - Detects beats and calculates tempo in real-time
+- 🎵 **Calibration mode** - Test with audio files for accurate calibration
 - 📊 **Visual feedback** - Shows current note, frequency, and tuning accuracy (cents)
 - 💓 **Pulsing beat indicator** - Visual pulse animation when beats are detected
 - 📜 **Note history** - Displays recent notes detected
+- 🎛️ **Individual feature toggles** - Enable/disable note, key, or beat detection independently
 - 🎨 **Modern UI** - Beautiful gradient design with dark/light mode support
 - 🌐 **Browser-based** - No installation required, runs entirely in the browser
 
@@ -48,6 +50,26 @@ npm run preview
 ### Development
 
 The app will run on `http://localhost:3000` by default.
+
+## Calibration Mode
+
+Test ToneScope with audio files for accurate calibration:
+
+1. **Add audio files** - Place MP3 files in `public/audio/`
+2. **Update song library** - Add song entries to `src/utils/songLibrary.js`
+3. **Start calibration** - Click "Calibration Mode" and select a song
+
+### Finding Public Domain Audio
+
+- **Musopen** - https://musopen.org/music/ (Classical music)
+- **FreePD** - https://freepd.com/ (Various genres)
+- **Internet Archive** - https://archive.org/details/audio
+
+### Recommended Test Files
+
+- C major scale exercises
+- Simple melodies (Twinkle Twinkle, Mary Had a Little Lamb)
+- Known BPM tracks for beat detection testing
 
 ### Production Build
 
