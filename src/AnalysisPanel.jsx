@@ -11,6 +11,10 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
     const canvas = keyCanvasRef.current;
     if (!canvas || !keyData?.histogram) return;
 
+    // Set canvas size from container
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     
@@ -62,6 +66,10 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
     const canvas = bpmCanvasRef.current;
     if (!canvas || !beatData?.histogram) return;
 
+    // Set canvas size from container
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
     
@@ -106,6 +114,10 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
   useEffect(() => {
     const canvas = noteCanvasRef.current;
     if (!canvas || !noteHistogram) return;
+
+    // Set canvas size from container
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
 
     const ctx = canvas.getContext('2d');
     const { width, height } = canvas;
@@ -175,9 +187,7 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
           <h3>Note Distribution</h3>
         </div>
         <canvas 
-          ref={noteCanvasRef} 
-          width={600} 
-          height={180}
+          ref={noteCanvasRef}
           className="histogram-canvas"
         />
         <p className="histogram-description">
@@ -202,9 +212,7 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
           )}
         </div>
         <canvas 
-          ref={keyCanvasRef} 
-          width={600} 
-          height={200}
+          ref={keyCanvasRef}
           className="histogram-canvas"
         />
         <p className="histogram-description">
@@ -229,9 +237,7 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
           )}
         </div>
         <canvas 
-          ref={bpmCanvasRef} 
-          width={600} 
-          height={200}
+          ref={bpmCanvasRef}
           className="histogram-canvas"
         />
         <p className="histogram-description">

@@ -115,10 +115,21 @@ export class KeyDetector {
     this.majorProfile = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
     this.minorProfile = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
     
-    // Track key detections over time for consensus
+    // Track key detections over time - CUMULATIVE (never resets)
+    this.keyVotesCumulative = {}; // Lifetime votes: { "C Major": count, "D Minor": count, ... }
+    this.totalVotes = 0; // Total number of detections
+    
+    // Track recent detections for consensus (rolling window)
     this.keyVotes = {}; // { "C Major": count, "D Minor": count, ... }
     this.maxKeyVotes = 30; // Keep last 30 key detections
     this.keyVoteHistory = []; // Array to maintain order
+    
+    // Initialize all 24 possible keys with 0 votes
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    notes.forEach(note => {
+      this.keyVotesCumulative[`${note} Major`] = 0;
+      this.keyVotesCumulative[`${note} Minor`] = 0;
+    });
   }
 
   addNote(noteName) {
@@ -180,19 +191,22 @@ export class KeyDetector {
     const maxCorrelation = this.getMaxCorrelation();
     const normalizedConfidence = (bestCorrelation / maxCorrelation) * 100;
     
-    // Track this detection as a vote
+    // Track this detection as a vote in BOTH cumulative and rolling window
+    this.keyVotesCumulative[bestKey]++;
+    this.totalVotes++;
+    
     this.keyVoteHistory.push(bestKey);
     if (this.keyVoteHistory.length > this.maxKeyVotes) {
       this.keyVoteHistory.shift();
     }
     
-    // Rebuild vote counts
+    // Rebuild rolling window vote counts
     this.keyVotes = {};
     this.keyVoteHistory.forEach(key => {
       this.keyVotes[key] = (this.keyVotes[key] || 0) + 1;
     });
     
-    // Find consensus key (most votes)
+    // Find consensus key from rolling window (most votes in recent history)
     let consensusKey = bestKey;
     let maxVotes = 0;
     Object.entries(this.keyVotes).forEach(([key, votes]) => {
@@ -202,12 +216,12 @@ export class KeyDetector {
       }
     });
     
-    // Create histogram from vote counts (not correlations)
-    const voteHistogram = Object.entries(this.keyVotes)
+    // Create histogram from CUMULATIVE vote counts (shows all 24 keys)
+    const voteHistogram = Object.entries(this.keyVotesCumulative)
       .map(([key, votes]) => ({
         key,
-        confidence: this.keyVoteHistory.length > 0 
-          ? Math.round((votes / this.keyVoteHistory.length) * 100)
+        confidence: this.totalVotes > 0 
+          ? Math.round((votes / this.totalVotes) * 100)
           : 0
       }))
       .sort((a, b) => b.confidence - a.confidence); // Sort by vote percentage descending
@@ -243,6 +257,14 @@ export class KeyDetector {
     this.noteHistory = [];
     this.keyVotes = {};
     this.keyVoteHistory = [];
+    this.totalVotes = 0;
+    
+    // Reset all cumulative votes to 0
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    notes.forEach(note => {
+      this.keyVotesCumulative[`${note} Major`] = 0;
+      this.keyVotesCumulative[`${note} Minor`] = 0;
+    });
   }
 }
 
@@ -280,7 +302,11 @@ export class BeatDetector {
     this.maxBeatHistory = 8; // Keep last 8 beats for BPM calculation
     this.currentBPM = 0;
     
-    // BPM histogram for visualization
+    // BPM histogram for visualization - CUMULATIVE (never resets)
+    this.bpmHistoryCumulative = {}; // Lifetime BPM counts by bucket
+    this.totalBPMReadings = 0;
+    
+    // BPM histogram for rolling window (recent detections)
     this.bpmHistory = []; // Store recent BPM readings
     this.maxBPMHistory = 30; // Keep last 30 BPM readings
   }
@@ -335,9 +361,17 @@ export class BeatDetector {
       // Calculate BPM from beat intervals
       this.currentBPM = this.calculateBPM();
       
-      // Add to BPM history
+      // Add to BPM history (both cumulative and rolling window)
       if (this.currentBPM > 0) {
-        this.bpmHistory.push(Math.round(this.currentBPM));
+        const roundedBPM = Math.round(this.currentBPM);
+        const bucket = Math.round(roundedBPM / 2) * 2; // Group into ±2 BPM buckets
+        
+        // Add to cumulative histogram
+        this.bpmHistoryCumulative[bucket] = (this.bpmHistoryCumulative[bucket] || 0) + 1;
+        this.totalBPMReadings++;
+        
+        // Add to rolling window
+        this.bpmHistory.push(roundedBPM);
         if (this.bpmHistory.length > this.maxBPMHistory) {
           this.bpmHistory.shift();
         }
@@ -423,25 +457,16 @@ export class BeatDetector {
   }
 
   getBPMHistogram() {
-    if (this.bpmHistory.length === 0) {
+    if (this.totalBPMReadings === 0) {
       return [];
     }
     
-    // Group BPM values into buckets (±2 BPM range)
-    const buckets = {};
-    this.bpmHistory.forEach(bpm => {
-      // Round to nearest 2 to create buckets
-      const bucket = Math.round(bpm / 2) * 2;
-      buckets[bucket] = (buckets[bucket] || 0) + 1;
-    });
-    
-    // Convert to array and calculate percentages
-    const total = this.bpmHistory.length;
-    const histogram = Object.entries(buckets)
+    // Use CUMULATIVE histogram (lifetime counts)
+    const histogram = Object.entries(this.bpmHistoryCumulative)
       .map(([bpm, count]) => ({
         bpm: parseInt(bpm),
         count,
-        percentage: Math.round((count / total) * 100)
+        percentage: Math.round((count / this.totalBPMReadings) * 100)
       }))
       .sort((a, b) => b.percentage - a.percentage); // Sort by percentage descending
     
@@ -456,6 +481,8 @@ export class BeatDetector {
     this.energyHistory = [];
     this.beatTimes = [];
     this.bpmHistory = [];
+    this.bpmHistoryCumulative = {};
+    this.totalBPMReadings = 0;
     this.currentBPM = 0;
     this.lastBeatTime = 0;
   }

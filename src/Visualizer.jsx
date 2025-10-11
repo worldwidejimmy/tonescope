@@ -4,7 +4,6 @@ import './Visualizer.css'
 function Visualizer({ analyser, currentNote, isActive }) {
   const waveformCanvasRef = useRef(null)
   const spectrumCanvasRef = useRef(null)
-  const noteCircleCanvasRef = useRef(null)
   const animationRef = useRef(null)
 
   useEffect(() => {
@@ -17,13 +16,11 @@ function Visualizer({ analyser, currentNote, isActive }) {
 
     const waveformCanvas = waveformCanvasRef.current
     const spectrumCanvas = spectrumCanvasRef.current
-    const noteCircleCanvas = noteCircleCanvasRef.current
 
-    if (!waveformCanvas || !spectrumCanvas || !noteCircleCanvas) return
+    if (!waveformCanvas || !spectrumCanvas) return
 
     const waveformCtx = waveformCanvas.getContext('2d')
     const spectrumCtx = spectrumCanvas.getContext('2d')
-    const noteCircleCtx = noteCircleCanvas.getContext('2d')
 
     // Set canvas sizes
     const setCanvasSizes = () => {
@@ -31,8 +28,6 @@ function Visualizer({ analyser, currentNote, isActive }) {
       waveformCanvas.height = waveformCanvas.offsetHeight
       spectrumCanvas.width = spectrumCanvas.offsetWidth
       spectrumCanvas.height = spectrumCanvas.offsetHeight
-      noteCircleCanvas.width = noteCircleCanvas.offsetWidth
-      noteCircleCanvas.height = noteCircleCanvas.offsetHeight
     }
     setCanvasSizes()
     window.addEventListener('resize', setCanvasSizes)
@@ -41,6 +36,9 @@ function Visualizer({ analyser, currentNote, isActive }) {
     const timeDataArray = new Uint8Array(bufferLength)
     const freqDataArray = new Uint8Array(bufferLength)
 
+    // Get sample rate for frequency calculations
+    const sampleRate = analyser.context.sampleRate
+
     const draw = () => {
       analyser.getByteTimeDomainData(timeDataArray)
       analyser.getByteFrequencyData(freqDataArray)
@@ -48,11 +46,8 @@ function Visualizer({ analyser, currentNote, isActive }) {
       // Draw Waveform
       drawWaveform(waveformCtx, waveformCanvas, timeDataArray, bufferLength)
 
-      // Draw Frequency Spectrum
-      drawSpectrum(spectrumCtx, spectrumCanvas, freqDataArray, bufferLength)
-
-      // Draw Note Circle
-      drawNoteCircle(noteCircleCtx, noteCircleCanvas, currentNote)
+      // Draw Frequency Spectrum with frequency labels
+      drawSpectrum(spectrumCtx, spectrumCanvas, freqDataArray, bufferLength, sampleRate)
 
       animationRef.current = requestAnimationFrame(draw)
     }
@@ -98,7 +93,7 @@ function Visualizer({ analyser, currentNote, isActive }) {
     ctx.stroke()
   }
 
-  const drawSpectrum = (ctx, canvas, dataArray, bufferLength) => {
+  const drawSpectrum = (ctx, canvas, dataArray, bufferLength, sampleRate) => {
     const width = canvas.width
     const height = canvas.height
 
@@ -107,6 +102,9 @@ function Visualizer({ analyser, currentNote, isActive }) {
 
     const barWidth = (width / bufferLength) * 2.5
     let x = 0
+
+    // Calculate Nyquist frequency (max frequency we can represent)
+    const nyquist = sampleRate / 2
 
     for (let i = 0; i < bufferLength; i++) {
       const barHeight = (dataArray[i] / 255) * height
@@ -122,64 +120,24 @@ function Visualizer({ analyser, currentNote, isActive }) {
 
       x += barWidth + 1
     }
-  }
 
-  const drawNoteCircle = (ctx, canvas, noteInfo) => {
-    const width = canvas.width
-    const height = canvas.height
-    const centerX = width / 2
-    const centerY = height / 2
-    const radius = Math.min(width, height) / 2 - 20
+    // Draw frequency labels
+    ctx.fillStyle = '#e2e8f0'
+    ctx.font = '10px system-ui'
+    ctx.textAlign = 'center'
 
-    // Clear canvas
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
-    ctx.fillRect(0, 0, width, height)
+    // Label key frequencies
+    const labelFreqs = [100, 500, 1000, 2000, 5000, 10000]
+    labelFreqs.forEach(freq => {
+      if (freq <= nyquist) {
+        // Calculate position in spectrum
+        const binIndex = Math.floor((freq / nyquist) * bufferLength)
+        const xPos = (binIndex / bufferLength) * width * 0.4 // 0.4 accounts for barWidth multiplier
 
-    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-    const angleStep = (Math.PI * 2) / 12
-
-    // Draw circle
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
-    ctx.stroke()
-
-    // Draw notes
-    notes.forEach((note, index) => {
-      const angle = angleStep * index - Math.PI / 2
-      const x = centerX + radius * Math.cos(angle)
-      const y = centerY + radius * Math.sin(angle)
-
-      const isActive = noteInfo && noteInfo.noteName === note
-
-      // Draw note circle
-      ctx.beginPath()
-      ctx.arc(x, y, isActive ? 20 : 12, 0, Math.PI * 2)
-      
-      if (isActive) {
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 20)
-        gradient.addColorStop(0, '#fee140')
-        gradient.addColorStop(1, '#fa709a')
-        ctx.fillStyle = gradient
-        ctx.shadowBlur = 20
-        ctx.shadowColor = '#fa709a'
-      } else {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
-        ctx.shadowBlur = 0
+        // Draw frequency label at bottom
+        ctx.fillText(`${freq >= 1000 ? (freq / 1000) + 'k' : freq}Hz`, xPos, height - 5)
       }
-      
-      ctx.fill()
-
-      // Draw note label
-      ctx.fillStyle = isActive ? '#000' : '#fff'
-      ctx.font = isActive ? 'bold 14px Arial' : '12px Arial'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(note, x, y)
     })
-
-    ctx.shadowBlur = 0
   }
 
   return (
@@ -194,12 +152,13 @@ function Visualizer({ analyser, currentNote, isActive }) {
           <canvas ref={spectrumCanvasRef} className="viz-canvas"></canvas>
         </div>
       </div>
-      <div className="viz-row">
+      {/* Chromatic Circle temporarily hidden for compact layout */}
+      {/* <div className="viz-row">
         <div className="viz-panel note-circle-panel">
           <h4>Chromatic Circle</h4>
           <canvas ref={noteCircleCanvasRef} className="viz-canvas note-circle"></canvas>
         </div>
-      </div>
+      </div> */}
     </div>
   )
 }
