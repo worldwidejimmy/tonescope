@@ -180,14 +180,6 @@ export class KeyDetector {
     const maxCorrelation = this.getMaxCorrelation();
     const normalizedConfidence = (bestCorrelation / maxCorrelation) * 100;
     
-    // Normalize histogram values
-    const normalizedHistogram = keyHistogram
-      .map(item => ({
-        key: item.key,
-        confidence: Math.round((item.correlation / maxCorrelation) * 100)
-      }))
-      .sort((a, b) => b.confidence - a.confidence); // Sort by confidence descending
-    
     // Track this detection as a vote
     this.keyVoteHistory.push(bestKey);
     if (this.keyVoteHistory.length > this.maxKeyVotes) {
@@ -210,6 +202,16 @@ export class KeyDetector {
       }
     });
     
+    // Create histogram from vote counts (not correlations)
+    const voteHistogram = Object.entries(this.keyVotes)
+      .map(([key, votes]) => ({
+        key,
+        confidence: this.keyVoteHistory.length > 0 
+          ? Math.round((votes / this.keyVoteHistory.length) * 100)
+          : 0
+      }))
+      .sort((a, b) => b.confidence - a.confidence); // Sort by vote percentage descending
+    
     const consensusConfidence = this.keyVoteHistory.length > 0 
       ? Math.round((maxVotes / this.keyVoteHistory.length) * 100)
       : 0;
@@ -219,7 +221,7 @@ export class KeyDetector {
       confidence: Math.round(Math.max(0, Math.min(100, normalizedConfidence))),
       consensusKey, // Most voted key
       consensusConfidence,
-      histogram: normalizedHistogram
+      histogram: voteHistogram // Show vote counts, not correlations
     };
   }
 
@@ -253,13 +255,19 @@ export class BeatDetector {
     this.analyser.smoothingTimeConstant = 0.8;
     this.bufferLength = this.analyser.frequencyBinCount;
     this.dataArray = new Uint8Array(this.bufferLength);
+    
+    // Initialize beat detection parameters
+    this.initBeatParams();
   }
 
   setFftSize(fftSize) {
     this.analyser.fftSize = fftSize;
     this.bufferLength = this.analyser.frequencyBinCount;
     this.dataArray = new Uint8Array(this.bufferLength);
-    
+  }
+
+  // Initialize beat detection parameters (called in constructor)
+  initBeatParams() {
     // Beat detection parameters
     this.energyHistory = [];
     this.historySize = 43; // Approximately 1 second at 60fps

@@ -20,10 +20,12 @@ export default function AnalysisPanel({ keyData, beatData, noteHistogram, audioC
     if (histogram.length === 0) return;
     
     const barWidth = width / histogram.length;
-    const maxConfidence = Math.max(...histogram.map(h => h.confidence));
+    // Use 100 as max instead of the actual max confidence
+    // This shows the absolute confidence values, not relative
+    const maxScale = 100;
     
     histogram.forEach((item, index) => {
-      const barHeight = (item.confidence / maxConfidence) * (height - 40);
+      const barHeight = (item.confidence / maxScale) * (height - 40);
       const x = index * barWidth;
       const y = height - barHeight - 20;
       

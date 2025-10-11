@@ -123,24 +123,20 @@ function App() {
     }
     lastUpdateTimeRef.current = now;
 
-    // Note detection (if enabled)
-    if (noteDetectionEnabled) {
+    // Check volume level (squelch) first
+    const analyser = pitchDetectorRef.current.getAnalyser();
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(dataArray);
+    const averageVolume = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
+    const volumePercent = (averageVolume / 255) * 100;
+    
+    const isAboveSquelch = volumePercent >= squelchThreshold;
+
+    // Note detection (if enabled and above squelch)
+    if (noteDetectionEnabled && isAboveSquelch) {
       const frequency = pitchDetectorRef.current.detectPitch()
       
       if (frequency > 0) {
-        // Check volume level (squelch) - only if we detected a frequency
-        const analyser = pitchDetectorRef.current.getAnalyser();
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-        const averageVolume = dataArray.reduce((sum, val) => sum + val, 0) / dataArray.length;
-        const volumePercent = (averageVolume / 255) * 100;
-        
-        // Skip processing if below squelch threshold
-        if (volumePercent < squelchThreshold) {
-          animationFrameRef.current = requestAnimationFrame(detectPitch);
-          return;
-        }
-        
         const noteInfo = frequencyToNote(frequency)
         if (noteInfo) {
           setCurrentNote(noteInfo)
