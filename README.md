@@ -6,7 +6,9 @@ Real-time music note and key detection web application built with React.js and t
 
 - 🎤 **Real-time pitch detection** - Detects musical notes as you play or sing
 - 🎹 **Musical key detection** - Analyzes note patterns to determine the musical key
+- 🥁 **Beat detection & BPM** - Detects beats and calculates tempo in real-time
 - 📊 **Visual feedback** - Shows current note, frequency, and tuning accuracy (cents)
+- 💓 **Pulsing beat indicator** - Visual pulse animation when beats are detected
 - 📜 **Note history** - Displays recent notes detected
 - 🎨 **Modern UI** - Beautiful gradient design with dark/light mode support
 - 🌐 **Browser-based** - No installation required, runs entirely in the browser
@@ -18,6 +20,7 @@ ToneScope uses the Web Audio API to:
 2. Analyze audio in real-time using autocorrelation for pitch detection
 3. Convert frequencies to musical notes
 4. Apply the Krumhansl-Schmuckler key-finding algorithm to detect the musical key
+5. Use energy-based beat detection to identify rhythmic patterns and calculate BPM
 
 ## Getting Started
 

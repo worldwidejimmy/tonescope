@@ -179,3 +179,145 @@ export class KeyDetector {
     this.noteHistory = [];
   }
 }
+
+// Beat detection using energy-based algorithm
+export class BeatDetector {
+  constructor(audioContext) {
+    this.audioContext = audioContext;
+    this.analyser = audioContext.createAnalyser();
+    this.analyser.fftSize = 2048;
+    this.analyser.smoothingTimeConstant = 0.8;
+    this.bufferLength = this.analyser.frequencyBinCount;
+    this.dataArray = new Uint8Array(this.bufferLength);
+    
+    // Beat detection parameters
+    this.energyHistory = [];
+    this.historySize = 43; // Approximately 1 second at 60fps
+    this.beatThreshold = 1.3; // Energy must be 30% above average
+    this.minTimeBetweenBeats = 300; // Minimum 300ms between beats (200 BPM max)
+    this.lastBeatTime = 0;
+    
+    // BPM calculation
+    this.beatTimes = [];
+    this.maxBeatHistory = 8; // Keep last 8 beats for BPM calculation
+    this.currentBPM = 0;
+  }
+
+  // Calculate instantaneous energy
+  getEnergy() {
+    this.analyser.getByteFrequencyData(this.dataArray);
+    
+    let sum = 0;
+    // Focus on lower frequencies (bass) for beat detection
+    const bassRange = Math.floor(this.bufferLength * 0.1); // First 10% of spectrum
+    
+    for (let i = 0; i < bassRange; i++) {
+      sum += this.dataArray[i] * this.dataArray[i];
+    }
+    
+    return sum / bassRange;
+  }
+
+  // Detect if current energy indicates a beat
+  detectBeat() {
+    const currentTime = Date.now();
+    const energy = this.getEnergy();
+    
+    // Add to history
+    this.energyHistory.push(energy);
+    if (this.energyHistory.length > this.historySize) {
+      this.energyHistory.shift();
+    }
+    
+    // Need enough history to make a decision
+    if (this.energyHistory.length < this.historySize) {
+      return { isBeat: false, bpm: 0, confidence: 0 };
+    }
+    
+    // Calculate average energy
+    const averageEnergy = this.energyHistory.reduce((a, b) => a + b, 0) / this.energyHistory.length;
+    
+    // Check if current energy is significantly higher than average
+    const isBeat = energy > (averageEnergy * this.beatThreshold) && 
+                   (currentTime - this.lastBeatTime) > this.minTimeBetweenBeats;
+    
+    if (isBeat) {
+      this.lastBeatTime = currentTime;
+      this.beatTimes.push(currentTime);
+      
+      // Keep only recent beats
+      if (this.beatTimes.length > this.maxBeatHistory) {
+        this.beatTimes.shift();
+      }
+      
+      // Calculate BPM from beat intervals
+      this.currentBPM = this.calculateBPM();
+    }
+    
+    // Calculate confidence based on consistency of beat intervals
+    const confidence = this.calculateConfidence();
+    
+    return {
+      isBeat,
+      bpm: Math.round(this.currentBPM),
+      confidence,
+      energy: Math.round(energy)
+    };
+  }
+
+  calculateBPM() {
+    if (this.beatTimes.length < 2) {
+      return 0;
+    }
+    
+    // Calculate average interval between beats
+    const intervals = [];
+    for (let i = 1; i < this.beatTimes.length; i++) {
+      intervals.push(this.beatTimes[i] - this.beatTimes[i - 1]);
+    }
+    
+    const averageInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    
+    // Convert to BPM (beats per minute)
+    const bpm = 60000 / averageInterval;
+    
+    // Clamp to reasonable range
+    return Math.max(40, Math.min(240, bpm));
+  }
+
+  calculateConfidence() {
+    if (this.beatTimes.length < 3) {
+      return 0;
+    }
+    
+    // Calculate variance in beat intervals
+    const intervals = [];
+    for (let i = 1; i < this.beatTimes.length; i++) {
+      intervals.push(this.beatTimes[i] - this.beatTimes[i - 1]);
+    }
+    
+    const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+    const variance = intervals.reduce((sum, interval) => {
+      return sum + Math.pow(interval - mean, 2);
+    }, 0) / intervals.length;
+    
+    const stdDev = Math.sqrt(variance);
+    
+    // Lower standard deviation = higher confidence
+    // Normalize to 0-100 scale
+    const confidence = Math.max(0, Math.min(100, 100 - (stdDev / mean * 100)));
+    
+    return Math.round(confidence);
+  }
+
+  getAnalyser() {
+    return this.analyser;
+  }
+
+  reset() {
+    this.energyHistory = [];
+    this.beatTimes = [];
+    this.currentBPM = 0;
+    this.lastBeatTime = 0;
+  }
+}

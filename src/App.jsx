@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { PitchDetector, frequencyToNote, KeyDetector } from './utils/audioUtils'
+import { PitchDetector, frequencyToNote, KeyDetector, BeatDetector } from './utils/audioUtils'
 import './App.css'
 
 function App() {
@@ -8,10 +8,16 @@ function App() {
   const [detectedKey, setDetectedKey] = useState({ key: 'Not detected', confidence: 0 })
   const [error, setError] = useState(null)
   const [noteHistory, setNoteHistory] = useState([])
+  
+  // Beat detection state
+  const [beatDetectionEnabled, setBeatDetectionEnabled] = useState(false)
+  const [beatInfo, setBeatInfo] = useState({ bpm: 0, confidence: 0 })
+  const [isBeat, setIsBeat] = useState(false)
 
   const audioContextRef = useRef(null)
   const pitchDetectorRef = useRef(null)
   const keyDetectorRef = useRef(null)
+  const beatDetectorRef = useRef(null)
   const animationFrameRef = useRef(null)
   const streamRef = useRef(null)
 
@@ -42,9 +48,14 @@ function App() {
       const keyDetector = new KeyDetector()
       keyDetectorRef.current = keyDetector
 
-      // Connect microphone to analyzer
+      // Create beat detector
+      const beatDetector = new BeatDetector(audioContext)
+      beatDetectorRef.current = beatDetector
+
+      // Connect microphone to analyzers
       const source = audioContext.createMediaStreamSource(stream)
       source.connect(pitchDetector.getAnalyser())
+      source.connect(beatDetector.getAnalyser())
 
       setIsListening(true)
 
@@ -103,6 +114,24 @@ function App() {
       }
     }
 
+    // Beat detection (if enabled)
+    if (beatDetectionEnabled && beatDetectorRef.current) {
+      const beatResult = beatDetectorRef.current.detectBeat()
+      
+      if (beatResult.isBeat) {
+        setIsBeat(true)
+        // Clear beat indicator after brief moment
+        setTimeout(() => setIsBeat(false), 100)
+      }
+      
+      if (beatResult.bpm > 0) {
+        setBeatInfo({
+          bpm: beatResult.bpm,
+          confidence: beatResult.confidence
+        })
+      }
+    }
+
     animationFrameRef.current = requestAnimationFrame(detectPitch)
   }
 
@@ -110,8 +139,21 @@ function App() {
     if (keyDetectorRef.current) {
       keyDetectorRef.current.clear()
     }
+    if (beatDetectorRef.current) {
+      beatDetectorRef.current.reset()
+    }
     setNoteHistory([])
     setDetectedKey({ key: 'Not detected', confidence: 0 })
+    setBeatInfo({ bpm: 0, confidence: 0 })
+  }
+
+  const toggleBeatDetection = () => {
+    setBeatDetectionEnabled(prev => !prev)
+    if (beatDetectorRef.current) {
+      beatDetectorRef.current.reset()
+    }
+    setBeatInfo({ bpm: 0, confidence: 0 })
+    setIsBeat(false)
   }
 
   return (
@@ -140,9 +182,17 @@ function App() {
           )}
           
           {isListening && (
-            <button className="btn btn-secondary" onClick={resetDetection}>
-              🔄 Reset Detection
-            </button>
+            <>
+              <button className="btn btn-secondary" onClick={resetDetection}>
+                🔄 Reset Detection
+              </button>
+              <button 
+                className={`btn ${beatDetectionEnabled ? 'btn-beat-active' : 'btn-beat'}`} 
+                onClick={toggleBeatDetection}
+              >
+                {beatDetectionEnabled ? '🎵 Beat: ON' : '🥁 Beat: OFF'}
+              </button>
+            </>
           )}
         </div>
 
@@ -175,6 +225,24 @@ function App() {
               )}
             </div>
           </div>
+
+          {beatDetectionEnabled && (
+            <div className={`beat-display ${isBeat ? 'pulse' : ''}`}>
+              <h2>Beat Detection</h2>
+              <div className="beat-info">
+                <div className="beat-indicator">
+                  {isBeat ? '🔴' : '⚪'}
+                </div>
+                <div className="bpm-large">{beatInfo.bpm > 0 ? beatInfo.bpm : '--'}</div>
+                <div className="bpm-label">BPM</div>
+                {beatInfo.confidence > 0 && (
+                  <div className="confidence">
+                    Confidence: {beatInfo.confidence}%
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {noteHistory.length > 0 && (

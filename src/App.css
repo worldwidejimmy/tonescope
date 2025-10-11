@@ -86,6 +86,37 @@
   box-shadow: 0 8px 16px rgba(79, 172, 254, 0.4);
 }
 
+.btn-beat {
+  background: linear-gradient(135deg, #a8a8a8 0%, #6c6c6c 100%);
+  color: white;
+}
+
+.btn-beat:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(108, 108, 108, 0.4);
+}
+
+.btn-beat-active {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  color: #333;
+  font-weight: bold;
+  animation: pulse-btn 1s ease-in-out infinite;
+}
+
+.btn-beat-active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(250, 112, 154, 0.6);
+}
+
+@keyframes pulse-btn {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
 .display-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -103,7 +134,8 @@
 }
 
 .note-display h2,
-.key-display h2 {
+.key-display h2,
+.beat-display h2 {
   font-size: 1.2rem;
   margin-bottom: 1.5rem;
   opacity: 0.7;
@@ -112,7 +144,8 @@
 }
 
 .note-info,
-.key-info {
+.key-info,
+.beat-info {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -149,6 +182,58 @@
   font-size: 1rem;
   opacity: 0.8;
   margin-top: 0.5rem;
+}
+
+/* Beat Detection Styles */
+.beat-display {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.1s ease;
+}
+
+.beat-display.pulse {
+  background: rgba(250, 112, 154, 0.2);
+  border-color: rgba(250, 112, 154, 0.5);
+  transform: scale(1.02);
+  box-shadow: 0 0 30px rgba(250, 112, 154, 0.4);
+}
+
+.beat-indicator {
+  font-size: 3rem;
+  margin: 1rem 0;
+  animation: beat-pulse 0.5s ease-in-out;
+}
+
+@keyframes beat-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.bpm-large {
+  font-size: 4rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0.5rem 0;
+}
+
+.bpm-label {
+  font-size: 1.2rem;
+  font-weight: 600;
+  opacity: 0.7;
+  letter-spacing: 3px;
 }
 
 .note-history {
@@ -228,7 +313,8 @@
   }
 
   .note-large,
-  .key-large {
+  .key-large,
+  .bpm-large {
     font-size: 3rem;
   }
 }
@@ -236,9 +322,15 @@
 @media (prefers-color-scheme: light) {
   .note-display,
   .key-display,
+  .beat-display,
   .note-history,
   .info {
     background: rgba(0, 0, 0, 0.03);
     border: 2px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  .beat-display.pulse {
+    background: rgba(250, 112, 154, 0.15);
+    border-color: rgba(250, 112, 154, 0.4);
   }
 }
