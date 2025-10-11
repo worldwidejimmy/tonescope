@@ -9,8 +9,12 @@ function App() {
   const [error, setError] = useState(null)
   const [noteHistory, setNoteHistory] = useState([])
   
-  // Beat detection state
+  // Individual feature toggles
+  const [noteDetectionEnabled, setNoteDetectionEnabled] = useState(true)
+  const [keyDetectionEnabled, setKeyDetectionEnabled] = useState(true)
   const [beatDetectionEnabled, setBeatDetectionEnabled] = useState(false)
+  
+  // Beat detection state
   const [beatInfo, setBeatInfo] = useState({ bpm: 0, confidence: 0 })
   const [isBeat, setIsBeat] = useState(false)
 
@@ -92,25 +96,30 @@ function App() {
   const detectPitch = () => {
     if (!pitchDetectorRef.current || !keyDetectorRef.current) return
 
-    const frequency = pitchDetectorRef.current.detectPitch()
-    
-    if (frequency > 0) {
-      const noteInfo = frequencyToNote(frequency)
-      if (noteInfo) {
-        setCurrentNote(noteInfo)
-        
-        // Add to note history display
-        setNoteHistory(prev => {
-          const newHistory = [...prev, noteInfo.note]
-          return newHistory.slice(-10) // Keep last 10 notes
-        })
+    // Note detection (if enabled)
+    if (noteDetectionEnabled) {
+      const frequency = pitchDetectorRef.current.detectPitch()
+      
+      if (frequency > 0) {
+        const noteInfo = frequencyToNote(frequency)
+        if (noteInfo) {
+          setCurrentNote(noteInfo)
+          
+          // Add to note history display
+          setNoteHistory(prev => {
+            const newHistory = [...prev, noteInfo.note]
+            return newHistory.slice(-10) // Keep last 10 notes
+          })
 
-        // Add to key detector
-        keyDetectorRef.current.addNote(noteInfo.noteName)
-        
-        // Update detected key
-        const key = keyDetectorRef.current.detectKey()
-        setDetectedKey(key)
+          // Add to key detector (if key detection is enabled)
+          if (keyDetectionEnabled) {
+            keyDetectorRef.current.addNote(noteInfo.noteName)
+            
+            // Update detected key
+            const key = keyDetectorRef.current.detectKey()
+            setDetectedKey(key)
+          }
+        }
       }
     }
 
@@ -147,13 +156,29 @@ function App() {
     setBeatInfo({ bpm: 0, confidence: 0 })
   }
 
+  const toggleNoteDetection = () => {
+    setNoteDetectionEnabled(prev => !prev)
+    if (!noteDetectionEnabled) {
+      setCurrentNote(null)
+      setNoteHistory([])
+    }
+  }
+
+  const toggleKeyDetection = () => {
+    setKeyDetectionEnabled(prev => !prev)
+    if (keyDetectorRef.current && !keyDetectionEnabled) {
+      keyDetectorRef.current.clear()
+      setDetectedKey({ key: 'Not detected', confidence: 0 })
+    }
+  }
+
   const toggleBeatDetection = () => {
     setBeatDetectionEnabled(prev => !prev)
-    if (beatDetectorRef.current) {
+    if (beatDetectorRef.current && !beatDetectionEnabled) {
       beatDetectorRef.current.reset()
+      setBeatInfo({ bpm: 0, confidence: 0 })
+      setIsBeat(false)
     }
-    setBeatInfo({ bpm: 0, confidence: 0 })
-    setIsBeat(false)
   }
 
   return (
@@ -176,73 +201,106 @@ function App() {
               🎤 Start Listening
             </button>
           ) : (
-            <button className="btn btn-danger" onClick={stopListening}>
-              ⏹️ Stop Listening
-            </button>
-          )}
-          
-          {isListening && (
             <>
-              <button className="btn btn-secondary" onClick={resetDetection}>
-                🔄 Reset Detection
+              <button className="btn btn-danger" onClick={stopListening}>
+                ⏹️ Stop Listening
               </button>
-              <button 
-                className={`btn ${beatDetectionEnabled ? 'btn-beat-active' : 'btn-beat'}`} 
-                onClick={toggleBeatDetection}
-              >
-                {beatDetectionEnabled ? '🎵 Beat: ON' : '🥁 Beat: OFF'}
+              <button className="btn btn-secondary" onClick={resetDetection}>
+                🔄 Reset All
               </button>
             </>
           )}
         </div>
 
         <div className="display-container">
-          <div className="note-display">
-            <h2>Current Note</h2>
-            {currentNote ? (
-              <div className="note-info">
-                <div className="note-large">{currentNote.note}</div>
-                <div className="frequency">{currentNote.frequency} Hz</div>
-                <div className="cents">
-                  {currentNote.cents > 0 ? '+' : ''}{currentNote.cents} cents
+          <div className="feature-panel">
+            <div className="feature-header">
+              <h2>Current Note</h2>
+              {isListening && (
+                <button 
+                  className={`btn-feature-toggle ${noteDetectionEnabled ? 'active' : ''}`}
+                  onClick={toggleNoteDetection}
+                >
+                  {noteDetectionEnabled ? '✓ ON' : '✗ OFF'}
+                </button>
+              )}
+            </div>
+            <div className={`note-display ${!noteDetectionEnabled ? 'disabled' : ''}`}>
+              {noteDetectionEnabled && currentNote ? (
+                <div className="note-info">
+                  <div className="note-large">{currentNote.note}</div>
+                  <div className="frequency">{currentNote.frequency} Hz</div>
+                  <div className="cents">
+                    {currentNote.cents > 0 ? '+' : ''}{currentNote.cents} cents
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="note-placeholder">
-                {isListening ? 'Listening...' : 'Not listening'}
-              </div>
-            )}
-          </div>
-
-          <div className="key-display">
-            <h2>Detected Key</h2>
-            <div className="key-info">
-              <div className="key-large">{detectedKey.key}</div>
-              {detectedKey.confidence > 0 && (
-                <div className="confidence">
-                  Confidence: {detectedKey.confidence}%
+              ) : (
+                <div className="note-placeholder">
+                  {!isListening ? 'Not listening' : !noteDetectionEnabled ? 'Disabled' : 'Listening...'}
                 </div>
               )}
             </div>
           </div>
 
-          {beatDetectionEnabled && (
-            <div className={`beat-display ${isBeat ? 'pulse' : ''}`}>
-              <h2>Beat Detection</h2>
-              <div className="beat-info">
-                <div className="beat-indicator">
-                  {isBeat ? '🔴' : '⚪'}
+          <div className="feature-panel">
+            <div className="feature-header">
+              <h2>Detected Key</h2>
+              {isListening && (
+                <button 
+                  className={`btn-feature-toggle ${keyDetectionEnabled ? 'active' : ''}`}
+                  onClick={toggleKeyDetection}
+                >
+                  {keyDetectionEnabled ? '✓ ON' : '✗ OFF'}
+                </button>
+              )}
+            </div>
+            <div className={`key-display ${!keyDetectionEnabled ? 'disabled' : ''}`}>
+              <div className="key-info">
+                <div className="key-large">
+                  {keyDetectionEnabled ? detectedKey.key : 'Disabled'}
                 </div>
-                <div className="bpm-large">{beatInfo.bpm > 0 ? beatInfo.bpm : '--'}</div>
-                <div className="bpm-label">BPM</div>
-                {beatInfo.confidence > 0 && (
+                {keyDetectionEnabled && detectedKey.confidence > 0 && (
                   <div className="confidence">
-                    Confidence: {beatInfo.confidence}%
+                    Confidence: {detectedKey.confidence}%
                   </div>
                 )}
               </div>
             </div>
-          )}
+          </div>
+
+          <div className="feature-panel">
+            <div className="feature-header">
+              <h2>Beat Detection</h2>
+              {isListening && (
+                <button 
+                  className={`btn-feature-toggle ${beatDetectionEnabled ? 'active' : ''}`}
+                  onClick={toggleBeatDetection}
+                >
+                  {beatDetectionEnabled ? '✓ ON' : '✗ OFF'}
+                </button>
+              )}
+            </div>
+            <div className={`beat-display ${isBeat && beatDetectionEnabled ? 'pulse' : ''} ${!beatDetectionEnabled ? 'disabled' : ''}`}>
+              {beatDetectionEnabled ? (
+                <div className="beat-info">
+                  <div className="beat-indicator">
+                    {isBeat ? '🔴' : '⚪'}
+                  </div>
+                  <div className="bpm-large">{beatInfo.bpm > 0 ? beatInfo.bpm : '--'}</div>
+                  <div className="bpm-label">BPM</div>
+                  {beatInfo.confidence > 0 && (
+                    <div className="confidence">
+                      Confidence: {beatInfo.confidence}%
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="note-placeholder">
+                  {!isListening ? 'Not listening' : 'Disabled'}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {noteHistory.length > 0 && (
